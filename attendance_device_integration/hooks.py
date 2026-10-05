@@ -83,7 +83,7 @@ app_license = "mit"
 # ------------
 
 # before_install = "attendance_device_integration.install.before_install"
-# after_install = "attendance_device_integration.install.after_install"
+after_install = "attendance_device_integration.setup.create_doctypes.execute"
 
 # Uninstallation
 # ------------
@@ -148,23 +148,16 @@ app_license = "mit"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"attendance_device_integration.tasks.all"
-# 	],
-# 	"daily": [
-# 		"attendance_device_integration.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"attendance_device_integration.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"attendance_device_integration.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"attendance_device_integration.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	# Runs on every scheduler tick (Frappe's most frequent standard
+	# bucket). sync_due_devices() itself only enqueues a sync job for a
+	# device once that device's own configured Sync Interval has elapsed -
+	# the tick frequency here is just how often we *check*, not how often
+	# any device actually gets synced.
+	"all": [
+		"attendance_device_integration.services.scheduler.sync_due_devices",
+	],
+}
 
 # Testing
 # -------

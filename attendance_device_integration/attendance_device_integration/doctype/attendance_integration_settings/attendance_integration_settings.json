@@ -1,0 +1,231 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-10-05 09:52:50.111071",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "enable_integration",
+  "enable_background_sync",
+  "column_break_28",
+  "default_company",
+  "default_timezone",
+  "default_sync_interval",
+  "section_break_29",
+  "create_employee_checkin",
+  "create_attendance",
+  "column_break_30",
+  "punch_pairing_mode",
+  "section_break_31",
+  "auto_match_rule",
+  "auto_match_custom_field",
+  "column_break_32",
+  "create_missing_employees",
+  "section_break_33",
+  "duplicate_handling",
+  "error_retry_count",
+  "column_break_34",
+  "time_difference_warning_threshold",
+  "section_break_35",
+  "batch_size",
+  "api_timeout",
+  "column_break_36",
+  "log_retention_days"
+ ],
+ "fields": [
+  {
+   "default": "1",
+   "fieldname": "enable_integration",
+   "fieldtype": "Check",
+   "label": "Enable Integration"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_background_sync",
+   "fieldtype": "Check",
+   "label": "Enable Background Sync"
+  },
+  {
+   "fieldname": "column_break_28",
+   "fieldtype": "Column Break",
+   "label": "Defaults"
+  },
+  {
+   "fieldname": "default_company",
+   "fieldtype": "Link",
+   "label": "Default Company",
+   "options": "Company"
+  },
+  {
+   "default": "Asia/Kolkata",
+   "fieldname": "default_timezone",
+   "fieldtype": "Data",
+   "label": "Default Timezone"
+  },
+  {
+   "default": "5",
+   "fieldname": "default_sync_interval",
+   "fieldtype": "Int",
+   "label": "Default Sync Interval (minutes)"
+  },
+  {
+   "fieldname": "section_break_29",
+   "fieldtype": "Section Break",
+   "label": "Attendance Creation"
+  },
+  {
+   "default": "1",
+   "fieldname": "create_employee_checkin",
+   "fieldtype": "Check",
+   "label": "Create Employee Checkin"
+  },
+  {
+   "default": "0",
+   "description": "Not recommended - prefer letting HRMS shift processing build Attendance from Employee Checkin",
+   "fieldname": "create_attendance",
+   "fieldtype": "Check",
+   "label": "Create Attendance Directly"
+  },
+  {
+   "fieldname": "column_break_30",
+   "fieldtype": "Column Break",
+   "label": "Attendance Creation (cont.)"
+  },
+  {
+   "default": "Use Device Direction",
+   "fieldname": "punch_pairing_mode",
+   "fieldtype": "Select",
+   "label": "Default Punch Pairing Mode",
+   "options": "Use Device Direction\nSequential IN/OUT"
+  },
+  {
+   "fieldname": "section_break_31",
+   "fieldtype": "Section Break",
+   "label": "Employee Mapping"
+  },
+  {
+   "default": "Attendance Device ID (Employee field)",
+   "description": "\"Attendance Device ID\" is the standard HRMS Employee field (Attendance & Leaves tab) built for exactly this - maintain the device's user ID directly on the Employee master and mapping is automatic.",
+   "fieldname": "auto_match_rule",
+   "fieldtype": "Select",
+   "label": "Auto Match Device User ID To",
+   "options": "Attendance Device ID (Employee field)\nEmployee ID\nEmployee Number\nCustom Field"
+  },
+  {
+   "depends_on": "eval:doc.auto_match_rule=='Custom Field'",
+   "fieldname": "auto_match_custom_field",
+   "fieldtype": "Data",
+   "label": "Custom Employee Field"
+  },
+  {
+   "fieldname": "column_break_32",
+   "fieldtype": "Column Break",
+   "label": "Employee Mapping (cont.)"
+  },
+  {
+   "default": "0",
+   "fieldname": "create_missing_employees",
+   "fieldtype": "Check",
+   "label": "Allow Creating Missing Employees"
+  },
+  {
+   "fieldname": "section_break_33",
+   "fieldtype": "Section Break",
+   "label": "Duplicate Handling & Retry"
+  },
+  {
+   "default": "Skip",
+   "fieldname": "duplicate_handling",
+   "fieldtype": "Select",
+   "label": "Duplicate Handling",
+   "options": "Skip\nLog Only\nOverwrite"
+  },
+  {
+   "default": "3",
+   "fieldname": "error_retry_count",
+   "fieldtype": "Int",
+   "label": "Error Retry Count"
+  },
+  {
+   "fieldname": "column_break_34",
+   "fieldtype": "Column Break",
+   "label": "Duplicate Handling & Retry (cont.)"
+  },
+  {
+   "default": "300",
+   "fieldname": "time_difference_warning_threshold",
+   "fieldtype": "Int",
+   "label": "Time Diff Warning Threshold (s)"
+  },
+  {
+   "fieldname": "section_break_35",
+   "fieldtype": "Section Break",
+   "label": "Performance"
+  },
+  {
+   "default": "500",
+   "fieldname": "batch_size",
+   "fieldtype": "Int",
+   "label": "Batch Size"
+  },
+  {
+   "default": "10",
+   "fieldname": "api_timeout",
+   "fieldtype": "Int",
+   "label": "API Timeout (s)"
+  },
+  {
+   "fieldname": "column_break_36",
+   "fieldtype": "Column Break",
+   "label": "Performance (cont.)"
+  },
+  {
+   "default": "0",
+   "description": "0 = keep forever",
+   "fieldname": "log_retention_days",
+   "fieldtype": "Int",
+   "label": "Log Retention (days)"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-05 10:27:05.753112",
+ "modified_by": "Administrator",
+ "module": "Attendance Device Integration",
+ "name": "Attendance Integration Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Attendance Integration Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Attendance Integration User"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

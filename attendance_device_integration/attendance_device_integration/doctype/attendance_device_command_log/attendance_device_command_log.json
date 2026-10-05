@@ -1,0 +1,127 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:ACL-{#####}",
+ "creation": "2026-10-05 09:52:50.889472",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "device",
+  "command",
+  "status",
+  "column_break_37",
+  "requested_by",
+  "requested_at",
+  "completed_at",
+  "section_break_38",
+  "response",
+  "error"
+ ],
+ "fields": [
+  {
+   "fieldname": "device",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Device",
+   "options": "Attendance Device"
+  },
+  {
+   "fieldname": "command",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Command",
+   "options": "Test Connection\nGet Device Info\nGet Users\nSync Users\nSync Attendance\nClear Logs\nSet Time\nGet Time\nRestart Device"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Queued\nRunning\nSuccess\nFailed"
+  },
+  {
+   "fieldname": "column_break_37",
+   "fieldtype": "Column Break",
+   "label": "Who/When"
+  },
+  {
+   "default": "__user",
+   "fieldname": "requested_by",
+   "fieldtype": "Link",
+   "label": "Requested By",
+   "options": "User"
+  },
+  {
+   "default": "now",
+   "fieldname": "requested_at",
+   "fieldtype": "Datetime",
+   "label": "Requested At"
+  },
+  {
+   "fieldname": "completed_at",
+   "fieldtype": "Datetime",
+   "label": "Completed At"
+  },
+  {
+   "fieldname": "section_break_38",
+   "fieldtype": "Section Break",
+   "label": "Result"
+  },
+  {
+   "fieldname": "response",
+   "fieldtype": "Code",
+   "label": "Response"
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Error"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-05 10:10:02.859865",
+ "modified_by": "Administrator",
+ "module": "Attendance Device Integration",
+ "name": "Attendance Device Command Log",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Attendance Integration Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Attendance Integration User"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

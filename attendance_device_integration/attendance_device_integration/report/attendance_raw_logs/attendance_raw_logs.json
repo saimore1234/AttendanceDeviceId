@@ -1,0 +1,32 @@
+{
+ "add_total_row": 0,
+ "add_translate_data": 0,
+ "columns": [],
+ "creation": "2026-10-05 10:14:36.876338",
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letter_head": null,
+ "modified": "2026-10-05 10:14:36.876338",
+ "modified_by": "Administrator",
+ "module": "Attendance Device Integration",
+ "name": "Attendance Raw Logs",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "query": "SELECT\n\t\t\tname AS \"Log:Link/Attendance Raw Log:140\",\n\t\t\tdevice AS \"Device:Link/Attendance Device:160\",\n\t\t\tdevice_user_id AS \"Device User ID:Data:120\",\n\t\t\temployee AS \"Employee:Link/Employee:160\",\n\t\t\tpunch_datetime AS \"Punch Datetime:Datetime:160\",\n\t\t\tdirection AS \"Direction:Data:90\",\n\t\t\tprocessing_status AS \"Status:Data:140\",\n\t\t\tsource AS \"Source:Data:100\"\n\t\tFROM `tabAttendance Raw Log`\n\t\tORDER BY punch_datetime DESC",
+ "ref_doctype": "Attendance Raw Log",
+ "report_name": "Attendance Raw Logs",
+ "report_type": "Query Report",
+ "roles": [
+  {
+   "role": "Attendance Integration Manager"
+  },
+  {
+   "role": "Attendance Integration User"
+  }
+ ],
+ "timeout": 0
+}

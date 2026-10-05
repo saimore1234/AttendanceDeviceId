@@ -1,0 +1,172 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:ASL-{#####}",
+ "creation": "2026-10-05 09:52:49.877663",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "device",
+  "sync_type",
+  "status",
+  "column_break_24",
+  "start_datetime",
+  "end_datetime",
+  "sync_started_at",
+  "sync_completed_at",
+  "section_break_25",
+  "records_fetched",
+  "records_inserted",
+  "records_duplicated",
+  "column_break_26",
+  "records_processed",
+  "records_failed",
+  "section_break_27",
+  "error_message"
+ ],
+ "fields": [
+  {
+   "fieldname": "device",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Device",
+   "options": "Attendance Device"
+  },
+  {
+   "fieldname": "sync_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Sync Type",
+   "options": "Manual\nScheduled\nInitial Sync\nIncremental Sync\nFull Sync"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Running\nSuccess\nPartial\nFailed"
+  },
+  {
+   "fieldname": "column_break_24",
+   "fieldtype": "Column Break",
+   "label": "Timing"
+  },
+  {
+   "fieldname": "start_datetime",
+   "fieldtype": "Datetime",
+   "label": "Fetch Window Start"
+  },
+  {
+   "fieldname": "end_datetime",
+   "fieldtype": "Datetime",
+   "label": "Fetch Window End"
+  },
+  {
+   "fieldname": "sync_started_at",
+   "fieldtype": "Datetime",
+   "label": "Sync Started At"
+  },
+  {
+   "fieldname": "sync_completed_at",
+   "fieldtype": "Datetime",
+   "label": "Sync Completed At"
+  },
+  {
+   "fieldname": "section_break_25",
+   "fieldtype": "Section Break",
+   "label": "Results"
+  },
+  {
+   "default": "0",
+   "fieldname": "records_fetched",
+   "fieldtype": "Int",
+   "label": "Records Fetched"
+  },
+  {
+   "default": "0",
+   "fieldname": "records_inserted",
+   "fieldtype": "Int",
+   "label": "Records Inserted"
+  },
+  {
+   "default": "0",
+   "fieldname": "records_duplicated",
+   "fieldtype": "Int",
+   "label": "Records Duplicated"
+  },
+  {
+   "fieldname": "column_break_26",
+   "fieldtype": "Column Break",
+   "label": "Results (cont.)"
+  },
+  {
+   "default": "0",
+   "fieldname": "records_processed",
+   "fieldtype": "Int",
+   "label": "Records Processed"
+  },
+  {
+   "default": "0",
+   "fieldname": "records_failed",
+   "fieldtype": "Int",
+   "label": "Records Failed"
+  },
+  {
+   "fieldname": "section_break_27",
+   "fieldtype": "Section Break",
+   "label": "Error"
+  },
+  {
+   "fieldname": "error_message",
+   "fieldtype": "Small Text",
+   "label": "Error Message"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-05 10:10:02.327176",
+ "modified_by": "Administrator",
+ "module": "Attendance Device Integration",
+ "name": "Attendance Sync Log",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Attendance Integration Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Attendance Integration User"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

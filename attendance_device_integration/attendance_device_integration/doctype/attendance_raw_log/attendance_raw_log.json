@@ -1,0 +1,251 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:ARL-{#####}",
+ "creation": "2026-10-05 09:52:49.579321",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "device",
+  "device_user_id",
+  "punch_datetime",
+  "column_break_18",
+  "employee",
+  "employee_number",
+  "processing_status",
+  "section_break_19",
+  "punch_date",
+  "punch_time",
+  "punch_type",
+  "direction",
+  "column_break_20",
+  "verification_type",
+  "work_code",
+  "transaction_id",
+  "device_transaction_id",
+  "section_break_21",
+  "source",
+  "processed",
+  "processing_message",
+  "column_break_22",
+  "unique_hash",
+  "received_at",
+  "employee_checkin",
+  "section_break_23",
+  "raw_data"
+ ],
+ "fields": [
+  {
+   "fieldname": "device",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Device",
+   "options": "Attendance Device",
+   "reqd": 1
+  },
+  {
+   "fieldname": "device_user_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Device User ID",
+   "search_index": 1
+  },
+  {
+   "fieldname": "punch_datetime",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Punch Datetime",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_18",
+   "fieldtype": "Column Break",
+   "label": "Employee"
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Employee",
+   "options": "Employee"
+  },
+  {
+   "fieldname": "employee_number",
+   "fieldtype": "Data",
+   "label": "Employee Number"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "processing_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Processing Status",
+   "options": "Pending\nProcessed\nUnmapped Employee\nDuplicate\nInvalid Datetime\nError",
+   "search_index": 1
+  },
+  {
+   "fieldname": "section_break_19",
+   "fieldtype": "Section Break",
+   "label": "Punch Details"
+  },
+  {
+   "fieldname": "punch_date",
+   "fieldtype": "Date",
+   "label": "Punch Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "punch_time",
+   "fieldtype": "Time",
+   "label": "Punch Time",
+   "read_only": 1
+  },
+  {
+   "fieldname": "punch_type",
+   "fieldtype": "Data",
+   "label": "Punch Type (raw)"
+  },
+  {
+   "default": "UNKNOWN",
+   "fieldname": "direction",
+   "fieldtype": "Select",
+   "label": "Direction",
+   "options": "IN\nOUT\nUNKNOWN"
+  },
+  {
+   "fieldname": "column_break_20",
+   "fieldtype": "Column Break",
+   "label": "Punch Details (cont.)"
+  },
+  {
+   "fieldname": "verification_type",
+   "fieldtype": "Data",
+   "label": "Verification Type"
+  },
+  {
+   "fieldname": "work_code",
+   "fieldtype": "Data",
+   "label": "Work Code"
+  },
+  {
+   "fieldname": "transaction_id",
+   "fieldtype": "Data",
+   "label": "Transaction ID"
+  },
+  {
+   "fieldname": "device_transaction_id",
+   "fieldtype": "Data",
+   "label": "Device Transaction ID",
+   "search_index": 1
+  },
+  {
+   "fieldname": "section_break_21",
+   "fieldtype": "Section Break",
+   "label": "Processing"
+  },
+  {
+   "default": "Sync",
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "Sync\nWebhook\nManual Import\nCSV\nExcel"
+  },
+  {
+   "default": "0",
+   "fieldname": "processed",
+   "fieldtype": "Check",
+   "label": "Processed"
+  },
+  {
+   "fieldname": "processing_message",
+   "fieldtype": "Small Text",
+   "label": "Processing Message"
+  },
+  {
+   "fieldname": "column_break_22",
+   "fieldtype": "Column Break",
+   "label": "Processing (cont.)"
+  },
+  {
+   "fieldname": "unique_hash",
+   "fieldtype": "Data",
+   "label": "Unique Hash",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "default": "now",
+   "fieldname": "received_at",
+   "fieldtype": "Datetime",
+   "label": "Received At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "employee_checkin",
+   "fieldtype": "Link",
+   "label": "Employee Checkin",
+   "options": "Employee Checkin",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_23",
+   "fieldtype": "Section Break",
+   "label": "Raw Data"
+  },
+  {
+   "fieldname": "raw_data",
+   "fieldtype": "Code",
+   "label": "Raw Data",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-05 10:10:02.085077",
+ "modified_by": "Administrator",
+ "module": "Attendance Device Integration",
+ "name": "Attendance Raw Log",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Attendance Integration Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Attendance Integration User"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

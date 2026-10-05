@@ -1,0 +1,494 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:device_name",
+ "creation": "2026-10-05 09:52:47.220270",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "device_name",
+  "enabled",
+  "protocol_type",
+  "column_break_1",
+  "device_brand",
+  "device_model",
+  "device_id",
+  "serial_number",
+  "device_type",
+  "section_break_2",
+  "ip_address",
+  "port",
+  "column_break_3",
+  "tcp_device_id",
+  "connection_timeout",
+  "section_break_4",
+  "base_url",
+  "http_api_endpoint",
+  "http_method",
+  "column_break_5",
+  "authentication_type",
+  "http_headers",
+  "ssl_verification",
+  "http_response_mapping",
+  "section_break_6",
+  "adms_push_pull_mode",
+  "adms_attendance_endpoint",
+  "column_break_7",
+  "adms_user_endpoint",
+  "section_break_8",
+  "import_file",
+  "import_employee_id_column",
+  "import_datetime_column",
+  "import_date_column",
+  "column_break_9",
+  "import_time_column",
+  "import_punch_type_column",
+  "import_direction_column",
+  "import_date_format",
+  "import_time_format",
+  "section_break_10",
+  "auto_sync_enabled",
+  "sync_interval",
+  "punch_pairing_mode",
+  "column_break_11",
+  "clear_logs_after_sync",
+  "retry_count",
+  "section_break_12",
+  "last_sync_datetime",
+  "last_successful_sync",
+  "last_sync_status",
+  "column_break_13",
+  "last_sync_message",
+  "last_connection_test",
+  "section_break_14",
+  "location",
+  "company",
+  "branch",
+  "column_break_15",
+  "device_timezone",
+  "notes",
+  "connection_mode",
+  "local_agent_url"
+ ],
+ "fields": [
+  {
+   "fieldname": "device_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Device Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "description": "Determines which device adapter handles this device. Brand/Model below are informational only.",
+   "fieldname": "protocol_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Protocol / Adapter Type",
+   "options": "Generic TCP/IP\nESSL TCP/IP\nZKTeco Compatible TCP/IP\nGeneric HTTP API\nADMS\nCSV Import\nExcel Import\nManual Entry",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break",
+   "label": "Identification"
+  },
+  {
+   "description": "Free text - e.g. ESSL, ZKTeco, Suprema. Never used to select code.",
+   "fieldname": "device_brand",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Device Brand"
+  },
+  {
+   "fieldname": "device_model",
+   "fieldtype": "Data",
+   "label": "Device Model"
+  },
+  {
+   "description": "The ID the device itself uses (not this document's name)",
+   "fieldname": "device_id",
+   "fieldtype": "Data",
+   "label": "Device ID"
+  },
+  {
+   "fieldname": "serial_number",
+   "fieldtype": "Data",
+   "label": "Serial Number"
+  },
+  {
+   "fieldname": "device_type",
+   "fieldtype": "Select",
+   "label": "Device Type",
+   "options": "Biometric\nFace Recognition\nFingerprint\nRFID\nPIN\nFace + Fingerprint\nMulti-Modal\nOther"
+  },
+  {
+   "depends_on": "eval:['Generic TCP/IP','ESSL TCP/IP','ZKTeco Compatible TCP/IP'].includes(doc.protocol_type)",
+   "fieldname": "section_break_2",
+   "fieldtype": "Section Break",
+   "label": "TCP/IP Settings"
+  },
+  {
+   "fieldname": "ip_address",
+   "fieldtype": "Data",
+   "label": "IP Address"
+  },
+  {
+   "default": "4370",
+   "fieldname": "port",
+   "fieldtype": "Int",
+   "label": "Port"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break",
+   "label": "TCP/IP Settings (cont.)"
+  },
+  {
+   "default": "1",
+   "description": "Numeric device/communication ID some TCP protocols require",
+   "fieldname": "tcp_device_id",
+   "fieldtype": "Int",
+   "label": "Device ID (Protocol)"
+  },
+  {
+   "default": "10",
+   "fieldname": "connection_timeout",
+   "fieldtype": "Int",
+   "label": "Connection Timeout (s)"
+  },
+  {
+   "depends_on": "eval:doc.protocol_type=='Generic HTTP API'",
+   "fieldname": "section_break_4",
+   "fieldtype": "Section Break",
+   "label": "HTTP API Settings"
+  },
+  {
+   "fieldname": "base_url",
+   "fieldtype": "Data",
+   "label": "Base URL"
+  },
+  {
+   "fieldname": "http_api_endpoint",
+   "fieldtype": "Data",
+   "label": "Attendance Endpoint"
+  },
+  {
+   "default": "GET",
+   "fieldname": "http_method",
+   "fieldtype": "Select",
+   "label": "Request Method",
+   "options": "GET\nPOST\nPUT"
+  },
+  {
+   "fieldname": "column_break_5",
+   "fieldtype": "Column Break",
+   "label": "HTTP API Settings (cont.)"
+  },
+  {
+   "default": "None",
+   "fieldname": "authentication_type",
+   "fieldtype": "Select",
+   "label": "Authentication Type",
+   "options": "None\nBasic\nAPI Key\nBearer Token"
+  },
+  {
+   "fieldname": "http_headers",
+   "fieldtype": "Code",
+   "label": "Extra Headers (JSON)",
+   "options": "JSON"
+  },
+  {
+   "default": "1",
+   "fieldname": "ssl_verification",
+   "fieldtype": "Check",
+   "label": "SSL Verification"
+  },
+  {
+   "description": "e.g. {\"device_user_id\": \"data.user_id\", \"punch_datetime\": \"data.timestamp\", \"punch_type\": \"data.status\", \"transaction_id\": \"data.id\", \"direction\": \"data.direction\"}",
+   "fieldname": "http_response_mapping",
+   "fieldtype": "Code",
+   "label": "Response Field Mapping (JSON)",
+   "options": "JSON"
+  },
+  {
+   "depends_on": "eval:doc.protocol_type=='ADMS'",
+   "fieldname": "section_break_6",
+   "fieldtype": "Section Break",
+   "label": "ADMS Settings"
+  },
+  {
+   "default": "Push",
+   "fieldname": "adms_push_pull_mode",
+   "fieldtype": "Select",
+   "label": "Mode",
+   "options": "Push\nPull"
+  },
+  {
+   "fieldname": "adms_attendance_endpoint",
+   "fieldtype": "Data",
+   "label": "Attendance Endpoint"
+  },
+  {
+   "fieldname": "column_break_7",
+   "fieldtype": "Column Break",
+   "label": "ADMS Settings (cont.)"
+  },
+  {
+   "fieldname": "adms_user_endpoint",
+   "fieldtype": "Data",
+   "label": "User Endpoint"
+  },
+  {
+   "depends_on": "eval:['CSV Import','Excel Import'].includes(doc.protocol_type)",
+   "fieldname": "section_break_8",
+   "fieldtype": "Section Break",
+   "label": "CSV / Excel Import Settings"
+  },
+  {
+   "fieldname": "import_file",
+   "fieldtype": "Attach",
+   "label": "Import File"
+  },
+  {
+   "fieldname": "import_employee_id_column",
+   "fieldtype": "Data",
+   "label": "Employee/Device User ID Column"
+  },
+  {
+   "fieldname": "import_datetime_column",
+   "fieldtype": "Data",
+   "label": "Combined Datetime Column"
+  },
+  {
+   "fieldname": "import_date_column",
+   "fieldtype": "Data",
+   "label": "Date Column (if separate)"
+  },
+  {
+   "fieldname": "column_break_9",
+   "fieldtype": "Column Break",
+   "label": "CSV / Excel Import Settings (cont.)"
+  },
+  {
+   "fieldname": "import_time_column",
+   "fieldtype": "Data",
+   "label": "Time Column (if separate)"
+  },
+  {
+   "fieldname": "import_punch_type_column",
+   "fieldtype": "Data",
+   "label": "Punch Type Column"
+  },
+  {
+   "fieldname": "import_direction_column",
+   "fieldtype": "Data",
+   "label": "Direction Column"
+  },
+  {
+   "default": "%Y-%m-%d",
+   "fieldname": "import_date_format",
+   "fieldtype": "Data",
+   "label": "Date Format"
+  },
+  {
+   "default": "%H:%M:%S",
+   "fieldname": "import_time_format",
+   "fieldtype": "Data",
+   "label": "Time Format"
+  },
+  {
+   "fieldname": "section_break_10",
+   "fieldtype": "Section Break",
+   "label": "Sync Behaviour"
+  },
+  {
+   "default": "0",
+   "fieldname": "auto_sync_enabled",
+   "fieldtype": "Check",
+   "label": "Auto Sync Enabled"
+  },
+  {
+   "default": "5",
+   "depends_on": "eval:doc.auto_sync_enabled",
+   "fieldname": "sync_interval",
+   "fieldtype": "Int",
+   "label": "Sync Interval (minutes)"
+  },
+  {
+   "default": "Use Device Direction",
+   "fieldname": "punch_pairing_mode",
+   "fieldtype": "Select",
+   "label": "Punch Pairing Mode",
+   "options": "Use Device Direction\nSequential IN/OUT"
+  },
+  {
+   "fieldname": "column_break_11",
+   "fieldtype": "Column Break",
+   "label": "Sync Behaviour (cont.)"
+  },
+  {
+   "default": "0",
+   "description": "Never enabled by default - clearing device memory is destructive",
+   "fieldname": "clear_logs_after_sync",
+   "fieldtype": "Check",
+   "label": "Clear Device Logs After Sync"
+  },
+  {
+   "default": "3",
+   "fieldname": "retry_count",
+   "fieldtype": "Int",
+   "label": "Retry Count"
+  },
+  {
+   "depends_on": "eval:!doc.__islocal",
+   "fieldname": "section_break_12",
+   "fieldtype": "Section Break",
+   "label": "Sync Status"
+  },
+  {
+   "fieldname": "last_sync_datetime",
+   "fieldtype": "Datetime",
+   "label": "Last Sync Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_successful_sync",
+   "fieldtype": "Datetime",
+   "label": "Last Successful Sync",
+   "read_only": 1
+  },
+  {
+   "default": "Never Synced",
+   "fieldname": "last_sync_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Last Sync Status",
+   "options": "Never Synced\nSuccess\nPartial\nFailed\nOffline",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_13",
+   "fieldtype": "Column Break",
+   "label": "Sync Status (cont.)"
+  },
+  {
+   "fieldname": "last_sync_message",
+   "fieldtype": "Small Text",
+   "label": "Last Sync Message",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_connection_test",
+   "fieldtype": "Datetime",
+   "label": "Last Connection Test",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_14",
+   "fieldtype": "Section Break",
+   "label": "Other"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Link",
+   "label": "Branch",
+   "options": "Branch"
+  },
+  {
+   "fieldname": "column_break_15",
+   "fieldtype": "Column Break",
+   "label": "Other (cont.)"
+  },
+  {
+   "default": "Asia/Kolkata",
+   "description": "IANA timezone name, e.g. Asia/Kolkata, America/New_York",
+   "fieldname": "device_timezone",
+   "fieldtype": "Data",
+   "label": "Device Timezone"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "default": "Server",
+   "description": "Server: ERPNext connects to the device directly. Local Agent: a small agent running on the device's own network relays the connection - use this when ERPNext is remote from the device.",
+   "fieldname": "connection_mode",
+   "fieldtype": "Select",
+   "label": "Connection Mode",
+   "options": "Server\nLocal Agent"
+  },
+  {
+   "depends_on": "eval:doc.connection_mode=='Local Agent'",
+   "description": "e.g. http://&lt;agent-host&gt;:8585 - the agent's own token is stored on this device's Attendance Device Credential (Bearer Token).",
+   "fieldname": "local_agent_url",
+   "fieldtype": "Data",
+   "label": "Local Agent URL"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-05 10:52:29.537515",
+ "modified_by": "Administrator",
+ "module": "Attendance Device Integration",
+ "name": "Attendance Device",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Attendance Integration Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Attendance Integration User"
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "device_name"
+}
