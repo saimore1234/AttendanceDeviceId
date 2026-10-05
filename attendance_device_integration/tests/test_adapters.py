@@ -133,6 +133,42 @@ class TestZKProtocolAdapter(unittest.TestCase):
 		self.assertEqual(punches[1].direction, "OUT")
 
 	@patch("attendance_device_integration.device_adapters.zk_protocol.ZK")
+	def test_get_attendance_logs_by_date_accepts_string_dates(self, mock_zk_class):
+		"""Regression test: the "Sync Today"/"Sync Yesterday" buttons send
+		start_date/end_date as plain strings (e.g. "2026-10-05 00:00:00"),
+		not datetime objects - this used to crash with
+		"combine() argument 1 must be datetime.date, not str"."""
+		mock_conn = MagicMock()
+		mock_conn.get_attendance.return_value = [
+			_FakeAttendance("2", datetime(2026, 10, 5, 9, 0, 0), punch=0),
+			_FakeAttendance("2", datetime(2026, 10, 6, 9, 0, 0), punch=0),  # outside range
+		]
+		mock_zk_instance = MagicMock()
+		mock_zk_instance.connect.return_value = mock_conn
+		mock_zk_class.return_value = mock_zk_instance
+
+		adapter = ZKProtocolAdapter({"ip_address": "10.0.0.5", "port": 4370})
+		adapter.connect()
+		punches = adapter.get_attendance_logs_by_date("2026-10-05 00:00:00", "2026-10-05 23:59:59")
+
+		self.assertEqual(len(punches), 1)
+		self.assertEqual(punches[0].punch_datetime, datetime(2026, 10, 5, 9, 0, 0))
+
+	@patch("attendance_device_integration.device_adapters.zk_protocol.ZK")
+	def test_get_attendance_logs_by_date_accepts_date_only_strings(self, mock_zk_class):
+		mock_conn = MagicMock()
+		mock_conn.get_attendance.return_value = [_FakeAttendance("2", datetime(2026, 10, 5, 9, 0, 0), punch=0)]
+		mock_zk_instance = MagicMock()
+		mock_zk_instance.connect.return_value = mock_conn
+		mock_zk_class.return_value = mock_zk_instance
+
+		adapter = ZKProtocolAdapter({"ip_address": "10.0.0.5", "port": 4370})
+		adapter.connect()
+		punches = adapter.get_attendance_logs_by_date("2026-10-05", "2026-10-05")
+
+		self.assertEqual(len(punches), 1)
+
+	@patch("attendance_device_integration.device_adapters.zk_protocol.ZK")
 	def test_connection_timeout_raises_clear_error(self, mock_zk_class):
 		from zk.exception import ZKNetworkError
 		mock_zk_instance = MagicMock()

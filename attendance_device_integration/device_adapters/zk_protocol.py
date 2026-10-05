@@ -13,11 +13,33 @@ than silently pretending to work.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from attendance_device_integration.device_adapters.base import (
 	AdapterError, AttendanceDeviceAdapter, DeviceInfo, DeviceUser, RawPunch,
 )
+
+
+def _to_datetime(value, end_of_day: bool) -> datetime:
+	"""Accepts a datetime, a date, or a string (the API/whitelisted
+	methods receive plain strings from the browser - e.g. the "Sync
+	Today"/"Sync Yesterday" buttons send "2026-10-05 00:00:00")."""
+	if isinstance(value, datetime):
+		return value
+	if isinstance(value, str):
+		try:
+			return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+		except ValueError:
+			pass
+		try:
+			parsed_date = datetime.strptime(value, "%Y-%m-%d").date()
+			return datetime.combine(parsed_date, datetime.max.time() if end_of_day else datetime.min.time())
+		except ValueError:
+			pass
+		raise AdapterError(f"Could not parse date/datetime: {value!r}", error_code="INVALID_DATETIME")
+	if isinstance(value, date):
+		return datetime.combine(value, datetime.max.time() if end_of_day else datetime.min.time())
+	raise AdapterError(f"Unsupported date type for {value!r}: {type(value)}", error_code="INVALID_DATETIME")
 
 try:
 	from zk import ZK
@@ -164,15 +186,16 @@ class ZKProtocolAdapter(AttendanceDeviceAdapter):
 
 	def get_attendance_logs_by_date(self, start_date, end_date) -> list[RawPunch]:
 		all_logs = self.get_attendance_logs()
-		start_dt = start_date if isinstance(start_date, datetime) else datetime.combine(start_date, datetime.min.time())
-		end_dt = end_date if isinstance(end_date, datetime) else datetime.combine(end_date, datetime.max.time())
+		start_dt = _to_datetime(start_date, end_of_day=False)
+		end_dt = _to_datetime(end_date, end_of_day=True)
 		return [p for p in all_logs if start_dt <= p.punch_datetime <= end_dt]
 
 	def get_attendance_logs_since_last_sync(self, since):
 		all_logs = self.get_attendance_logs()
 		if since is None:
 			return all_logs
-		return [p for p in all_logs if p.punch_datetime > since]
+		since_dt = _to_datetime(since, end_of_day=False)
+		return [p for p in all_logs if p.punch_datetime > since_dt]
 
 	def clear_attendance_logs(self) -> None:
 		self._require_connection()
