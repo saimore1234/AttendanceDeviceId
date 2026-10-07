@@ -26,6 +26,13 @@ class TestTimezoneUtils(unittest.TestCase):
 		converted = to_system_timezone(dt, "Asia/Kolkata")
 		self.assertEqual(converted, dt)
 
+	@patch("attendance_device_integration.utils.timezone_utils.frappe.utils.get_system_timezone", return_value="Asia/Calcutta")
+	def test_legacy_alias_is_identity(self, _mock):
+		# Asia/Calcutta (Frappe's default) and Asia/Kolkata are the same zone;
+		# it must never silently fall back to UTC.
+		dt = datetime(2026, 1, 1, 11, 32, 36)
+		self.assertEqual(to_system_timezone(dt, "Asia/Kolkata"), dt)
+
 	def test_invalid_device_timezone_raises(self):
 		with self.assertRaises(ValueError):
 			to_system_timezone(datetime(2026, 1, 1), "Not/AZone")

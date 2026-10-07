@@ -6,14 +6,25 @@ server's or company's timezone. We store both: the raw datetime exactly
 as the device reported it (Attendance Raw Log.punch_datetime, naive,
 device-local) and only convert when writing into Employee Checkin, which
 Frappe stores as system-time.
+
+Uses pytz (bundled with Frappe) rather than zoneinfo: zoneinfo reads the
+OS tz database, and newer distros ship legacy aliases such as
+"Asia/Calcutta" - Frappe's own default - only in an optional package.
 """
 
 from __future__ import annotations
 
 from datetime import datetime
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import frappe
+import pytz
+
+
+def _get_zone(name: str):
+	try:
+		return pytz.timezone(name or "UTC")
+	except pytz.UnknownTimeZoneError:
+		raise ValueError(f"Unknown timezone: {name!r}")
 
 
 def to_system_timezone(dt: datetime, device_timezone: str) -> datetime:
@@ -22,19 +33,10 @@ def to_system_timezone(dt: datetime, device_timezone: str) -> datetime:
 	if dt is None:
 		return None
 
-	system_tz_name = frappe.utils.get_system_timezone() if hasattr(frappe.utils, "get_system_timezone") else "UTC"
+	device_tz = _get_zone(device_timezone)
+	system_tz = _get_zone(frappe.utils.get_system_timezone())
 
-	try:
-		device_tz = ZoneInfo(device_timezone or "UTC")
-	except ZoneInfoNotFoundError:
-		raise ValueError(f"Unknown timezone: {device_timezone!r}")
-
-	try:
-		system_tz = ZoneInfo(system_tz_name)
-	except ZoneInfoNotFoundError:
-		system_tz = ZoneInfo("UTC")
-
-	aware = dt.replace(tzinfo=device_tz)
+	aware = device_tz.localize(dt)
 	converted = aware.astimezone(system_tz)
 	return converted.replace(tzinfo=None)
 
@@ -42,16 +44,12 @@ def to_system_timezone(dt: datetime, device_timezone: str) -> datetime:
 def now_in_timezone(device_timezone: str) -> datetime:
 	"""Current wall-clock time in `device_timezone`, naive - what a device
 	clock should be set to."""
-	try:
-		tz = ZoneInfo(device_timezone or "UTC")
-	except ZoneInfoNotFoundError:
-		raise ValueError(f"Unknown timezone: {device_timezone!r}")
-	return datetime.now(tz).replace(tzinfo=None, microsecond=0)
+	return datetime.now(_get_zone(device_timezone)).replace(tzinfo=None, microsecond=0)
 
 
 def is_valid_timezone(name: str) -> bool:
 	try:
-		ZoneInfo(name)
+		_get_zone(name)
 		return True
-	except ZoneInfoNotFoundError:
+	except ValueError:
 		return False
