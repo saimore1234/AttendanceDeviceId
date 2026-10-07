@@ -206,7 +206,9 @@ def create_app(config):
 	@require_auth
 	@with_connection
 	def set_time(conn, payload):
-		conn.set_time(datetime.now())
+		# Use the device-local time ERPNext sends; this machine's own clock/timezone may differ.
+		target = payload.get("datetime")
+		conn.set_time(datetime.fromisoformat(target) if target else datetime.now())
 		return jsonify({"success": True})
 
 	@app.route("/restart", methods=["POST"])

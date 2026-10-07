@@ -81,8 +81,9 @@ def get_time(agent_url, token, device_dict):
 	return _call(agent_url, "/get-time", token, device_dict)
 
 
-def set_time(agent_url, token, device_dict):
-	return _call(agent_url, "/set-time", token, device_dict)
+def set_time(agent_url, token, device_dict, dt=None):
+	extra = {"datetime": dt.isoformat()} if dt else {}
+	return _call(agent_url, "/set-time", token, device_dict, **extra)
 
 
 def restart(agent_url, token, device_dict):

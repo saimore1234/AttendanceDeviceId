@@ -37,7 +37,7 @@ def make_cards():
 	make_number_card("Devices With Errors", "Attendance Device",
 					  filters=[["Attendance Device", "last_sync_status", "in", ["Failed", "Offline"]]], color="red")
 	make_number_card("Today's Punches", "Attendance Raw Log",
-					  filters=[["Attendance Raw Log", "punch_date", "=", "Today"]], color="green")
+					  filters=[["Attendance Raw Log", "punch_date", "Timespan", "today", False]], color="green")
 	make_number_card("Unprocessed Logs", "Attendance Raw Log",
 					  filters=[["Attendance Raw Log", "processing_status", "=", "Pending"]], color="orange")
 	make_number_card("Unmapped Employees", "Attendance Raw Log",

@@ -106,7 +106,7 @@ class RemoteAgentAdapter(AttendanceDeviceAdapter):
 		return datetime.fromisoformat(result["device_time"])
 
 	def set_device_time(self, dt: datetime) -> None:
-		local_agent_client.set_time(*self._args())
+		local_agent_client.set_time(*self._args(), dt=dt)
 
 	def restart_device(self) -> None:
 		local_agent_client.restart(*self._args())

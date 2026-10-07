@@ -39,6 +39,16 @@ def to_system_timezone(dt: datetime, device_timezone: str) -> datetime:
 	return converted.replace(tzinfo=None)
 
 
+def now_in_timezone(device_timezone: str) -> datetime:
+	"""Current wall-clock time in `device_timezone`, naive - what a device
+	clock should be set to."""
+	try:
+		tz = ZoneInfo(device_timezone or "UTC")
+	except ZoneInfoNotFoundError:
+		raise ValueError(f"Unknown timezone: {device_timezone!r}")
+	return datetime.now(tz).replace(tzinfo=None, microsecond=0)
+
+
 def is_valid_timezone(name: str) -> bool:
 	try:
 		ZoneInfo(name)

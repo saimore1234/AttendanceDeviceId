@@ -8,6 +8,7 @@ import frappe
 from attendance_device_integration.device_adapters.base import AdapterError
 from attendance_device_integration.device_adapters.registry import get_adapter_for_device
 from attendance_device_integration.services import credential_service, mapping_service, sync_service
+from attendance_device_integration.utils.timezone_utils import now_in_timezone
 
 
 def _require_manager():
@@ -184,10 +185,11 @@ def get_device_time(device: str):
 @frappe.whitelist()
 def set_device_time(device: str):
 	_require_manager()
-	_, adapter = _get_device_and_adapter(device)
+	device_doc, adapter = _get_device_and_adapter(device)
 	try:
 		adapter.connect()
-		adapter.set_device_time(frappe.utils.now_datetime())
+		# Device clocks run in the device's own timezone, not the server's.
+		adapter.set_device_time(now_in_timezone(device_doc.device_timezone))
 		_log_command(device, "Set Time", "Success")
 		return {"success": True}
 	except AdapterError as e:
