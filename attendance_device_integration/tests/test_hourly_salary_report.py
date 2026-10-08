@@ -12,7 +12,14 @@ from attendance_device_integration.attendance_device_integration.report.hourly_e
 EMPLOYEES = {
 	"EMP-RAVI": frappe._dict(name="EMP-RAVI", employee_name="Ravi", department="Production", hourly_rate=65),
 	"EMP-AMIT": frappe._dict(name="EMP-AMIT", employee_name="Amit", department="Production", hourly_rate=70),
+	"EMP-STAFF": frappe._dict(name="EMP-STAFF", employee_name="Priya", department="Office", salary_type="Staff", daily_rate=800),
 }
+
+
+def staff_day(*punches):
+	"""One Staff day on 2026-10-01, punches as (HH:MM, IN/OUT)."""
+	(row,) = daily([punch("EMP-STAFF", f"2026-10-01 {t}", lt) for t, lt in punches])
+	return row
 
 
 def punch(employee, when, log_type):
@@ -128,3 +135,42 @@ class TestHourlySalaryReport(unittest.TestCase):
 		self.assertEqual(summary["EMP-RAVI"]["incomplete_days"], 1)
 		self.assertEqual(summary["EMP-AMIT"]["salary"], 560.0)
 		self.assertEqual(summary["EMP-AMIT"]["month"], "2026-10")
+
+
+class TestStaffDailySalary(unittest.TestCase):
+	# Daily Rate 800, Staff Full Day Hours 8 (shift 9:00-5:30 minus 30 min lunch)
+
+	def test_full_shift_with_lunch_is_full_day(self):
+		row = staff_day(("09:00", "IN"), ("13:00", "OUT"), ("13:30", "IN"), ("17:30", "OUT"))
+		self.assertEqual((row["working_hours"], row["paid_days"], row["salary"]), (8.0, 1.0, 800.0))
+		self.assertEqual((row["salary_type"], row["hourly_rate"], row["daily_rate"]), ("Staff", 100.0, 800.0))
+
+	def test_extra_time_not_paid(self):
+		row = staff_day(("09:00", "IN"), ("13:00", "OUT"), ("13:30", "IN"), ("19:30", "OUT"))
+		self.assertEqual((row["working_hours"], row["payable_hours"], row["salary"]), (10.0, 8.0, 800.0))
+		self.assertIn("beyond full day", row["remarks"])
+
+	def test_leaving_at_1pm_is_half_day(self):
+		row = staff_day(("09:00", "IN"), ("13:00", "OUT"))
+		self.assertEqual((row["working_hours"], row["paid_days"], row["salary"]), (4.0, 0.5, 400.0))
+
+	def test_short_days_paid_hourly(self):
+		self.assertEqual(staff_day(("09:00", "IN"), ("15:00", "OUT"))["salary"], 600.0)
+		self.assertEqual(staff_day(("09:00", "IN"), ("16:00", "OUT"))["salary"], 700.0)
+		self.assertEqual(staff_day(("09:00", "IN"), ("16:15", "OUT"))["salary"], 725.0)
+
+	def test_staff_missing_out_not_paid(self):
+		row = staff_day(("09:00", "IN"))
+		self.assertEqual((row["punch_status"], row["paid_days"], row["salary"]), ("Missing OUT", 0.0, 0.0))
+
+	def test_staff_monthly_summary(self):
+		days = build_daily_rows([
+			punch("EMP-STAFF", "2026-10-01 09:00", "IN"),
+			punch("EMP-STAFF", "2026-10-01 18:00", "OUT"),  # 9h -> capped, 800
+			punch("EMP-STAFF", "2026-10-02 09:00", "IN"),
+			punch("EMP-STAFF", "2026-10-02 13:00", "OUT"),  # 4h -> 400
+			punch("EMP-STAFF", "2026-10-03 09:00", "IN"),
+			punch("EMP-STAFF", "2026-10-03 15:00", "OUT"),  # 6h -> 600
+		], EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31))
+		(g,) = [to_output(g) for g in summarise(days, "Employee")]
+		self.assertEqual((g["working_hours"], g["payable_hours"], g["paid_days"], g["salary"]), (19.0, 18.0, 2.25, 1800.0))

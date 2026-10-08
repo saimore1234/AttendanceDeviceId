@@ -1,7 +1,11 @@
 """Hourly Employee Salary Report.
 
-Employee Checkin IN/OUT punches -> paired working hours -> Employee hourly
-rate -> salary.
+Employee Checkin IN/OUT punches -> paired working hours -> salary.
+
+Worker: working hours x Employee hourly rate, all hours paid.
+Staff: Daily Rate for a full day (Staff Full Day Hours in Attendance
+Integration Settings); shorter days paid pro-rata at Daily Rate / Full Day
+Hours per hour; time beyond a full day is not paid.
 
 This is a Script Report rather than a Query Report: punches must be paired
 chronologically per employee (multiple IN/OUT per day, shifts crossing
@@ -19,6 +23,11 @@ from frappe import _
 from frappe.utils import add_days, get_datetime, getdate
 
 HOURLY_RATE_FIELD = "custom_hourly_rate"
+SALARY_TYPE_FIELD = "custom_salary_type"
+DAILY_RATE_FIELD = "custom_daily_rate"
+
+WORKER = "Worker"
+STAFF = "Staff"
 
 # An IN followed by an OUT more than this many hours later is treated as a
 # missing OUT plus a missing IN, not as one very long shift.
@@ -36,11 +45,17 @@ def execute(filters=None):
 	filters = frappe._dict(filters or {})
 	validate_filters(filters)
 	group_by = filters.group_by or "Daily"
+	full_day_hours = get_staff_full_day_hours()
 
 	employees = get_employees(filters)
 	checkins = get_checkins(filters, employees) if employees else []
 	days = build_daily_rows(
-		checkins, employees, getdate(filters.from_date), getdate(filters.to_date), bool(filters.include_incomplete)
+		checkins,
+		employees,
+		getdate(filters.from_date),
+		getdate(filters.to_date),
+		bool(filters.include_incomplete),
+		full_day_hours,
 	)
 
 	data = days if group_by == "Daily" else summarise(days, group_by)
@@ -52,24 +67,44 @@ def validate_filters(filters):
 		frappe.throw(_("From Date and To Date are mandatory"))
 	if getdate(filters.from_date) > getdate(filters.to_date):
 		frappe.throw(_("From Date cannot be after To Date"))
-	if not frappe.get_meta("Employee").has_field(HOURLY_RATE_FIELD):
-		frappe.throw(_("Field {0} not found on Employee").format(HOURLY_RATE_FIELD))
+	meta = frappe.get_meta("Employee")
+	for fieldname in (HOURLY_RATE_FIELD, SALARY_TYPE_FIELD, DAILY_RATE_FIELD):
+		if not meta.has_field(fieldname):
+			frappe.throw(_("Field {0} not found on Employee - run bench migrate").format(fieldname))
+
+
+def get_staff_full_day_hours():
+	hours = Decimal(str(frappe.db.get_single_value("Attendance Integration Settings", "staff_full_day_hours") or 0))
+	if hours <= 0:
+		frappe.throw(_("Set Staff Full Day Hours in Attendance Integration Settings"))
+	return hours
 
 
 def get_employees(filters):
-	emp_filters = {}
+	emp_filters = []
 	if filters.employee:
-		emp_filters["name"] = filters.employee
+		emp_filters.append(["name", "=", filters.employee])
 	if filters.department:
-		emp_filters["department"] = filters.department
+		emp_filters.append(["department", "=", filters.department])
 	if filters.employment_type:
-		emp_filters["employment_type"] = filters.employment_type
+		emp_filters.append(["employment_type", "=", filters.employment_type])
+	if filters.salary_type == STAFF:
+		emp_filters.append([SALARY_TYPE_FIELD, "=", STAFF])
+	elif filters.salary_type == WORKER:
+		emp_filters.append([SALARY_TYPE_FIELD, "!=", STAFF])  # blank counts as Worker
 
 	# get_list (not get_all) so Employee read permission and User Permissions apply.
 	rows = frappe.get_list(
 		"Employee",
 		filters=emp_filters,
-		fields=["name", "employee_name", "department", f"{HOURLY_RATE_FIELD} as hourly_rate"],
+		fields=[
+			"name",
+			"employee_name",
+			"department",
+			f"{HOURLY_RATE_FIELD} as hourly_rate",
+			f"{SALARY_TYPE_FIELD} as salary_type",
+			f"{DAILY_RATE_FIELD} as daily_rate",
+		],
 		limit_page_length=0,
 	)
 	return {row.name: row for row in rows}
@@ -138,7 +173,7 @@ def pair_punches(punches):
 	return pairs, strays
 
 
-def build_daily_rows(checkins, employees, from_date, to_date, include_incomplete=False):
+def build_daily_rows(checkins, employees, from_date, to_date, include_incomplete=False, full_day_hours=Decimal(8)):
 	by_employee = defaultdict(list)
 	for c in checkins:
 		by_employee[c.employee].append(c)
@@ -177,7 +212,6 @@ def build_daily_rows(checkins, employees, from_date, to_date, include_incomplete
 		if not (from_date <= date <= to_date):
 			continue
 		emp = employees[employee]
-		rate = to_decimal(emp.hourly_rate)
 		status = punch_status(day.issues)
 		working_hours = (day.seconds / 3600).quantize(TWO_PLACES, ROUND_HALF_UP)
 		payable_hours = working_hours if status == COMPLETE or include_incomplete else Decimal(0)
@@ -187,23 +221,43 @@ def build_daily_rows(checkins, employees, from_date, to_date, include_incomplete
 			remarks.append(_("Overnight"))
 		if day.inferred:
 			remarks.append(_("IN/OUT inferred from punch order"))
-		if payable_hours != working_hours:
+		if status != COMPLETE and not include_incomplete and working_hours:
 			remarks.append(_("Not paid: incomplete punches"))
-		if not rate:
-			remarks.append(_("No hourly rate on Employee"))
+
+		salary_type = STAFF if emp.salary_type == STAFF else WORKER
+		daily_rate = paid_days = None
+		if salary_type == STAFF:
+			daily_rate = to_decimal(emp.daily_rate)
+			if payable_hours > full_day_hours:
+				remarks.append(_("Time beyond full day not paid"))
+				payable_hours = full_day_hours
+			# Pro-rata per hour; a full day comes out at exactly the daily rate.
+			salary = (payable_hours * daily_rate / full_day_hours).quantize(TWO_PLACES, ROUND_HALF_UP)
+			hourly_rate = (daily_rate / full_day_hours).quantize(TWO_PLACES, ROUND_HALF_UP)
+			paid_days = (payable_hours / full_day_hours).quantize(TWO_PLACES, ROUND_HALF_UP)
+			if not daily_rate:
+				remarks.append(_("No daily rate on Employee"))
+		else:
+			hourly_rate = to_decimal(emp.hourly_rate)
+			salary = (payable_hours * hourly_rate).quantize(TWO_PLACES, ROUND_HALF_UP)
+			if not hourly_rate:
+				remarks.append(_("No hourly rate on Employee"))
 
 		rows.append(frappe._dict(
 			employee=employee,
 			employee_name=emp.employee_name,
 			department=emp.department,
+			salary_type=salary_type,
 			date=date,
 			first_in=min(day.ins).strftime("%H:%M:%S") if day.ins else None,
 			last_out=max(day.outs).strftime("%H:%M:%S") if day.outs else None,
 			punch_count=day.punches,
 			working_hours=working_hours,
 			payable_hours=payable_hours,
-			hourly_rate=rate,
-			salary=(payable_hours * rate).quantize(TWO_PLACES, ROUND_HALF_UP),
+			paid_days=paid_days,
+			hourly_rate=hourly_rate,
+			daily_rate=daily_rate,
+			salary=salary,
 			punch_status=status,
 			remarks=", ".join(remarks),
 		))
@@ -225,9 +279,11 @@ def summarise(days, group_by):
 		key = (d.employee, month)
 		if key not in groups:
 			groups[key] = frappe._dict(
-				employee=d.employee, employee_name=d.employee_name, department=d.department, month=month,
-				complete_days=0, incomplete_days=0, working_hours=Decimal(0), payable_hours=Decimal(0),
-				hourly_rate=d.hourly_rate,
+				employee=d.employee, employee_name=d.employee_name, department=d.department,
+				salary_type=d.salary_type, month=month, complete_days=0, incomplete_days=0,
+				working_hours=Decimal(0), payable_hours=Decimal(0),
+				paid_days=Decimal(0) if d.salary_type == STAFF else None,
+				hourly_rate=d.hourly_rate, daily_rate=d.daily_rate, salary=Decimal(0),
 			)
 		g = groups[key]
 		if d.punch_status == COMPLETE:
@@ -236,12 +292,15 @@ def summarise(days, group_by):
 			g.incomplete_days += 1
 		g.working_hours += d.working_hours
 		g.payable_hours += d.payable_hours
+		g.salary += d.salary
+		if g.salary_type == STAFF:
+			g.paid_days += d.paid_days
 
-	rows = []
 	for g in groups.values():
-		g.salary = (g.payable_hours * g.hourly_rate).quantize(TWO_PLACES, ROUND_HALF_UP)
-		rows.append(g)
-	return sorted(rows, key=lambda g: (g.employee, g.month or ""))
+		if g.salary_type == WORKER:
+			# Total Salary = Total Hours x Hourly Rate, not a sum of rounded daily amounts.
+			g.salary = (g.payable_hours * g.hourly_rate).quantize(TWO_PLACES, ROUND_HALF_UP)
+	return sorted(groups.values(), key=lambda g: (g.employee, g.month or ""))
 
 
 def get_report_summary(days):
@@ -260,9 +319,12 @@ def get_columns(group_by):
 		{"label": _("Employee"), "fieldname": "employee", "fieldtype": "Link", "options": "Employee", "width": 130},
 		{"label": _("Employee Name"), "fieldname": "employee_name", "fieldtype": "Data", "width": 180},
 		{"label": _("Department"), "fieldname": "department", "fieldtype": "Link", "options": "Department", "width": 150},
+		{"label": _("Salary Type"), "fieldname": "salary_type", "fieldtype": "Data", "width": 100},
 	]
 	money_cols = [
+		{"label": _("Paid Days"), "fieldname": "paid_days", "fieldtype": "Float", "precision": 2, "width": 90},
 		{"label": _("Hourly Rate"), "fieldname": "hourly_rate", "fieldtype": "Currency", "width": 110},
+		{"label": _("Daily Rate"), "fieldname": "daily_rate", "fieldtype": "Currency", "width": 110},
 		{"label": _("Salary"), "fieldname": "salary", "fieldtype": "Currency", "width": 120},
 	]
 	hours_cols = [

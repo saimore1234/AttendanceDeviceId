@@ -33,6 +33,12 @@ frappe.query_reports["Hourly Employee Salary Report"] = {
 			options: "Employment Type",
 		},
 		{
+			fieldname: "salary_type",
+			label: __("Salary Type"),
+			fieldtype: "Select",
+			options: "\nWorker\nStaff",
+		},
+		{
 			fieldname: "group_by",
 			label: __("Group By"),
 			fieldtype: "Select",

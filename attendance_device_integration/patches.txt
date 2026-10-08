@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 attendance_device_integration.patches.fix_todays_punches_card_filter
 attendance_device_integration.patches.fix_checkin_times_shifted_to_utc
+attendance_device_integration.patches.add_staff_salary_fields

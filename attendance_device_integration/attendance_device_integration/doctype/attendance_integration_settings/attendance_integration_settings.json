@@ -31,7 +31,9 @@
   "batch_size",
   "api_timeout",
   "column_break_36",
-  "log_retention_days"
+  "log_retention_days",
+  "section_break_salary",
+  "staff_full_day_hours"
  ],
  "fields": [
   {
@@ -186,13 +188,25 @@
    "fieldname": "log_retention_days",
    "fieldtype": "Int",
    "label": "Log Retention (days)"
+  },
+  {
+   "fieldname": "section_break_salary",
+   "fieldtype": "Section Break",
+   "label": "Hourly Salary Report"
+  },
+  {
+   "default": "8",
+   "fieldname": "staff_full_day_hours",
+   "fieldtype": "Float",
+   "label": "Staff Full Day Hours",
+   "description": "Working hours that earn a Staff member their full Daily Rate. Fewer hours are paid pro-rata (Daily Rate / Full Day Hours per hour); extra hours are not paid."
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-05 10:27:05.753112",
+ "modified": "2026-10-08 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "Attendance Device Integration",
  "name": "Attendance Integration Settings",
