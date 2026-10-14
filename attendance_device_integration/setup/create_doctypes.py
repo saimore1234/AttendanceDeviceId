@@ -407,5 +407,11 @@ def execute():
 	settings = frappe.get_single("Attendance Integration Settings")
 	settings.save(ignore_permissions=True)
 
+	# Patches are marked done without running on a fresh install, so the
+	# salary fields must be created here too.
+	print("Creating Employee salary fields...")
+	from attendance_device_integration.setup.salary_fields import ensure_salary_fields
+	ensure_salary_fields()
+
 	frappe.db.commit()
 	print("Done.")
