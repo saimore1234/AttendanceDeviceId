@@ -29,6 +29,8 @@ from attendance_device_integration.utils.constants import (
 from attendance_device_integration.utils.hashing import compute_unique_hash
 from attendance_device_integration.utils.logging import log_error, log_sync
 
+SYNC_OVERLAP_HOURS = 24
+
 
 def sync_device(device_name: str, sync_type: str = "Manual", start_date=None, end_date=None) -> dict:
 	if not frappe.db.exists("Attendance Device", device_name):
@@ -133,7 +135,13 @@ def _fetch_punches(adapter, device, sync_type, start_date, end_date):
 		end = end_date or datetime.now()
 		return adapter.get_attendance_logs_by_date(start, end)
 
+	# last_sync_datetime is the server clock when the previous sync finished,
+	# so a punch made during that sync, or stamped by a device clock running
+	# behind the server, is older than it and would never be fetched. Look
+	# back further; the unique-hash check discards punches already ingested.
 	since = device.last_sync_datetime
+	if since:
+		since = since - timedelta(hours=SYNC_OVERLAP_HOURS)
 	return adapter.get_attendance_logs_since_last_sync(since)
 
 
