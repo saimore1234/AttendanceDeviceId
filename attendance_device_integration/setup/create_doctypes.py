@@ -159,7 +159,7 @@ def attendance_device_fields():
 
 		_section("Sync Behaviour"),
 		{"fieldname": "auto_sync_enabled", "fieldtype": "Check", "label": "Auto Sync Enabled", "default": "0"},
-		{"fieldname": "sync_interval", "fieldtype": "Int", "label": "Sync Interval (minutes)", "default": "5",
+		{"fieldname": "sync_interval", "fieldtype": "Int", "label": "Sync Interval (minutes)", "default": "2",
 		 "depends_on": "eval:doc.auto_sync_enabled"},
 		{"fieldname": "punch_pairing_mode", "fieldtype": "Select", "label": "Punch Pairing Mode",
 		 "options": "Use Device Direction\nSequential IN/OUT", "default": "Use Device Direction"},
@@ -283,7 +283,7 @@ def attendance_integration_settings_fields():
 		_col("Defaults"),
 		{"fieldname": "default_company", "fieldtype": "Link", "label": "Default Company", "options": "Company"},
 		{"fieldname": "default_timezone", "fieldtype": "Data", "label": "Default Timezone", "default": "Asia/Kolkata"},
-		{"fieldname": "default_sync_interval", "fieldtype": "Int", "label": "Default Sync Interval (minutes)", "default": "5"},
+		{"fieldname": "default_sync_interval", "fieldtype": "Int", "label": "Default Sync Interval (minutes)", "default": "2"},
 
 		_section("Attendance Creation"),
 		{"fieldname": "create_employee_checkin", "fieldtype": "Check", "label": "Create Employee Checkin", "default": "1"},

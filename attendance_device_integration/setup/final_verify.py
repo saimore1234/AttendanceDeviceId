@@ -29,7 +29,7 @@ def execute():
 
 	print("\n=== Scheduler event registered ===")
 	events = frappe.get_hooks("scheduler_events")
-	print("  'all' bucket:", [e for e in events.get("all", []) if "attendance_device_integration" in e])
+	print("  every-minute cron:", [e for e in events.get("cron", {}).get("* * * * *", []) if "attendance_device_integration" in e])
 
 	print("\n=== Whitelisted API endpoints ===")
 	from attendance_device_integration.api import devices, webhook

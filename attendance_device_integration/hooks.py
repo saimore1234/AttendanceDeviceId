@@ -149,14 +149,17 @@ after_install = "attendance_device_integration.setup.create_doctypes.execute"
 # ---------------
 
 scheduler_events = {
-	# Runs on every scheduler tick (Frappe's most frequent standard
-	# bucket). sync_due_devices() itself only enqueues a sync job for a
-	# device once that device's own configured Sync Interval has elapsed -
-	# the tick frequency here is just how often we *check*, not how often
-	# any device actually gets synced.
-	"all": [
-		"attendance_device_integration.services.scheduler.sync_due_devices",
-	],
+	# Checked every minute. Not "all": Frappe runs "all" only every
+	# scheduler_interval (default 240s), so a 2-minute Sync Interval would
+	# silently become 4. sync_due_devices() itself only enqueues a sync job
+	# for a device once that device's own configured Sync Interval has
+	# elapsed - this cron is how often we *check*, not how often any device
+	# actually gets synced.
+	"cron": {
+		"* * * * *": [
+			"attendance_device_integration.services.scheduler.sync_due_devices",
+		],
+	},
 }
 
 # Testing
