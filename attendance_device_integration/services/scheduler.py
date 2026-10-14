@@ -65,6 +65,18 @@ def sync_due_devices():
 		)
 
 
+def delete_old_sync_logs():
+	"""Daily: drop Attendance Sync Logs older than Log Retention (days).
+	0 keeps them forever. Raw logs and checkins are attendance records and
+	are never touched."""
+	days = frappe.db.get_single_value("Attendance Integration Settings", "log_retention_days")
+	if not days or days <= 0:
+		return
+	cutoff = frappe.utils.add_days(frappe.utils.now_datetime(), -days)
+	frappe.db.delete("Attendance Sync Log", {"creation": ["<", cutoff], "status": ["!=", SYNC_STATUS_RUNNING]})
+	frappe.db.commit()
+
+
 def get_last_attempt(device_name):
 	return frappe.db.get_value(
 		"Attendance Sync Log", {"device": device_name}, "sync_started_at", order_by="sync_started_at desc"

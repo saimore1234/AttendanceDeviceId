@@ -160,6 +160,9 @@ scheduler_events = {
 			"attendance_device_integration.services.scheduler.sync_due_devices",
 		],
 	},
+	"daily": [
+		"attendance_device_integration.services.scheduler.delete_old_sync_logs",
+	],
 }
 
 # Testing

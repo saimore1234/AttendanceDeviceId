@@ -14,7 +14,7 @@ one bad device never stops the scheduler from syncing the rest.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import frappe
 
@@ -43,6 +43,11 @@ def sync_device(device_name: str, sync_type: str = "Manual", start_date=None, en
 	settings = frappe.get_single("Attendance Integration Settings")
 	if not settings.enable_integration:
 		return {"success": False, "error": "Attendance Integration is disabled in settings"}
+
+	# The device serves one connection at a time; a second sync connecting
+	# mid-download can read back zero records and report a false "0 fetched".
+	if frappe.db.exists("Attendance Sync Log", {"device": device.name, "status": SYNC_STATUS_RUNNING}):
+		return {"success": False, "error": "Another sync is already running for this device - try again in a minute"}
 
 	sync_log = frappe.get_doc({
 		"doctype": "Attendance Sync Log",
@@ -123,17 +128,27 @@ def sync_device(device_name: str, sync_type: str = "Manual", start_date=None, en
 	sync_log.error_message = error_message
 	sync_log.sync_completed_at = frappe.utils.now_datetime()
 	sync_log.save(ignore_permissions=True)
+
+	# A scheduled sync that found nothing new is noise - one every couple of
+	# minutes would bury the logs that matter. Failures are always kept.
+	if sync_type == "Scheduled" and status == SYNC_STATUS_SUCCESS and not counters["inserted"]:
+		sync_log.delete(ignore_permissions=True)
+		sync_log_name = None
+	else:
+		sync_log_name = sync_log.name
 	frappe.db.commit()
 
 	log_sync(f"Finished sync for device {device.name}: {counters}")
-	return {"success": status != SYNC_STATUS_FAILED, "status": status, **counters, "sync_log": sync_log.name}
+	return {"success": status != SYNC_STATUS_FAILED, "status": status, **counters, "sync_log": sync_log_name}
 
 
 def _fetch_punches(adapter, device, sync_type, start_date, end_date):
-	if sync_type == "Full Sync" or (start_date and end_date):
-		start = start_date or (datetime.now() - timedelta(days=3650))
-		end = end_date or datetime.now()
-		return adapter.get_attendance_logs_by_date(start, end)
+	if start_date and end_date:
+		return adapter.get_attendance_logs_by_date(start_date, end_date)
+	if sync_type == "Full Sync":
+		# Everything on the device, with no "until now" cut-off: a device clock
+		# running ahead of the server would otherwise hide its newest punches.
+		return adapter.get_attendance_logs()
 
 	# last_sync_datetime is the server clock when the previous sync finished,
 	# so a punch made during that sync, or stamped by a device clock running
