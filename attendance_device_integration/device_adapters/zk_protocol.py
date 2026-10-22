@@ -73,10 +73,20 @@ class ZKProtocolAdapter(AttendanceDeviceAdapter):
 
 		self._zk = ZK(ip, port=port, timeout=timeout, password=password, force_udp=False, ommit_ping=False)
 		try:
-			self._conn = self._zk.connect()
+			try:
+				self._conn = self._zk.connect()
+			except ZKNetworkError:
+				# Some ESSL/ZK firmwares only speak UDP and reset TCP sessions
+				# (seen as "Broken pipe" / "Connection reset") - retry over UDP.
+				self._zk = ZK(ip, port=port, timeout=timeout, password=password, force_udp=True, ommit_ping=True)
+				self._conn = self._zk.connect()
 			self._connected = True
 		except ZKNetworkError as e:
-			raise AdapterError(f"Could not reach {ip}:{port} - {e}", error_code="CONNECTION_TIMEOUT")
+			raise AdapterError(
+				f"Could not reach {ip}:{port} - {e}. The device may already be connected to another "
+				"application (e.g. eTimeTrackLite/ZKAccess) - only one session is allowed at a time.",
+				error_code="CONNECTION_TIMEOUT",
+			)
 		except ZKErrorConnection as e:
 			raise AdapterError(f"Connection to {ip}:{port} failed - {e}", error_code="AUTHENTICATION_FAILED")
 		except Exception as e:

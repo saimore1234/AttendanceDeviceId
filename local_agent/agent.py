@@ -75,10 +75,16 @@ def _connect(device):
 		raise ValueError("No ip_address in device config")
 	port = int(device.get("port") or 4370)
 	timeout = int(device.get("connection_timeout") or 10)
+	password = int(device.get("password")) if str(device.get("password") or "").isdigit() else 0
 
-	zk = ZK(ip, port=port, timeout=timeout, force_udp=False, ommit_ping=False)
+	zk = ZK(ip, port=port, timeout=timeout, password=password, force_udp=False, ommit_ping=False)
 	try:
-		return zk.connect()
+		try:
+			return zk.connect()
+		except ZKNetworkError:
+			# Some ESSL/ZK firmwares only speak UDP and reset TCP sessions - retry over UDP.
+			zk = ZK(ip, port=port, timeout=timeout, password=password, force_udp=True, ommit_ping=True)
+			return zk.connect()
 	except ZKNetworkError as e:
 		raise ConnectionError(f"Could not reach {ip}:{port} - {e}")
 	except ZKErrorConnection as e:
