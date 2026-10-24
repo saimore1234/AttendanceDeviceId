@@ -37,6 +37,7 @@ COMPLETE = "Complete"
 MISSING_OUT = "Missing OUT"
 MISSING_IN = "Missing IN"
 INVALID_SEQUENCE = "Invalid Punch Sequence"
+HOLIDAY = "Paid Holiday"
 
 TWO_PLACES = Decimal("0.01")
 
@@ -49,6 +50,9 @@ def execute(filters=None):
 
 	employees = get_employees(filters)
 	checkins = get_checkins(filters, employees) if employees else []
+	holidays = get_staff_holidays(
+		employees, getdate(filters.from_date), getdate(filters.to_date), bool(filters.pay_weekly_offs)
+	)
 	days = build_daily_rows(
 		checkins,
 		employees,
@@ -56,6 +60,8 @@ def execute(filters=None):
 		getdate(filters.to_date),
 		bool(filters.include_incomplete),
 		full_day_hours,
+		bool(filters.ignore_device_log_type),
+		holidays,
 	)
 
 	data = days if group_by == "Daily" else summarise(days, group_by)
@@ -101,6 +107,10 @@ def get_employees(filters):
 			"name",
 			"employee_name",
 			"department",
+			"company",
+			"holiday_list",
+			"date_of_joining",
+			"relieving_date",
 			f"{HOURLY_RATE_FIELD} as hourly_rate",
 			f"{SALARY_TYPE_FIELD} as salary_type",
 			f"{DAILY_RATE_FIELD} as daily_rate",
@@ -108,6 +118,38 @@ def get_employees(filters):
 		limit_page_length=0,
 	)
 	return {row.name: row for row in rows}
+
+
+def get_staff_holidays(employees, from_date, to_date, pay_weekly_offs=False):
+	"""{employee: [dates]} of Holiday List days Staff are paid for.
+
+	Uses the employee's own Holiday List, else the Company default - the same
+	lookup HRMS does. Weekly offs are only included when asked for, because
+	whether Sundays are paid is a payroll policy, not something the list says.
+	Days before joining or after relieving are never paid."""
+	from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
+	from hrms.utils.holiday_list import get_holiday_dates_between
+
+	by_list = {}
+	result = {}
+	for name, emp in employees.items():
+		if emp.salary_type != STAFF:
+			continue
+		holiday_list = get_holiday_list_for_employee(name, raise_exception=False)
+		if not holiday_list:
+			continue
+		if holiday_list not in by_list:
+			by_list[holiday_list] = get_holiday_dates_between(
+				holiday_list, from_date, to_date, skip_weekly_offs=not pay_weekly_offs
+			)
+		joined = getdate(emp.date_of_joining) if emp.date_of_joining else None
+		relieved = getdate(emp.relieving_date) if emp.relieving_date else None
+		result[name] = [
+			d
+			for d in by_list[holiday_list]
+			if (not joined or d >= joined) and (not relieved or d <= relieved)
+		]
+	return result
 
 
 def get_checkins(filters, employees):
@@ -128,16 +170,18 @@ def get_checkins(filters, employees):
 	)
 
 
-def infer_missing_log_types(punches):
+def infer_missing_log_types(punches, ignore_log_type=False):
 	"""Fill a blank log_type by position within the calendar day (1st IN,
 	2nd OUT, ...) - the same rule the integration's "Sequential IN/OUT"
-	pairing mode uses when creating checkins."""
+	pairing mode uses when creating checkins. With ignore_log_type every
+	punch is placed by position, for machines that send the same IN/OUT
+	flag for every punch."""
 	seen_per_day = defaultdict(int)
 	result = []
 	for p in punches:
 		time = get_datetime(p.time)
 		log_type = (p.log_type or "").upper()
-		inferred = log_type not in ("IN", "OUT")
+		inferred = ignore_log_type or log_type not in ("IN", "OUT")
 		if inferred:
 			log_type = "IN" if seen_per_day[time.date()] % 2 == 0 else "OUT"
 		seen_per_day[time.date()] += 1
@@ -173,7 +217,16 @@ def pair_punches(punches):
 	return pairs, strays
 
 
-def build_daily_rows(checkins, employees, from_date, to_date, include_incomplete=False, full_day_hours=Decimal(8)):
+def build_daily_rows(
+	checkins,
+	employees,
+	from_date,
+	to_date,
+	include_incomplete=False,
+	full_day_hours=Decimal(8),
+	ignore_log_type=False,
+	holidays=None,
+):
 	by_employee = defaultdict(list)
 	for c in checkins:
 		by_employee[c.employee].append(c)
@@ -183,12 +236,13 @@ def build_daily_rows(checkins, employees, from_date, to_date, include_incomplete
 	def day_for(employee, date):
 		if (employee, date) not in days:
 			days[(employee, date)] = frappe._dict(
-				employee=employee, date=date, seconds=Decimal(0), ins=[], outs=[], issues=set(), inferred=False, punches=0
+				employee=employee, date=date, seconds=Decimal(0), ins=[], outs=[], issues=set(), inferred=False, punches=0,
+				holiday=False,
 			)
 		return days[(employee, date)]
 
 	for employee, punches in by_employee.items():
-		punches = infer_missing_log_types(sorted(punches, key=lambda p: get_datetime(p.time)))
+		punches = infer_missing_log_types(sorted(punches, key=lambda p: get_datetime(p.time)), ignore_log_type)
 		pairs, strays = pair_punches(punches)
 
 		# A pair belongs to the day of its IN, so an overnight shift stays on one row.
@@ -207,28 +261,38 @@ def build_daily_rows(checkins, employees, from_date, to_date, include_incomplete
 			day.inferred = day.inferred or p.inferred
 			day.punches += 1
 
+	# Staff are paid a full day for holidays whether or not they punched; a
+	# holiday nobody punched on still needs its own row.
+	for employee, dates in (holidays or {}).items():
+		for date in dates:
+			if from_date <= date <= to_date:
+				day_for(employee, date).holiday = True
+
 	rows = []
 	for (employee, date), day in sorted(days.items()):
 		if not (from_date <= date <= to_date):
 			continue
 		emp = employees[employee]
-		status = punch_status(day.issues)
+		status = HOLIDAY if day.holiday else punch_status(day.issues)
 		working_hours = (day.seconds / 3600).quantize(TWO_PLACES, ROUND_HALF_UP)
-		payable_hours = working_hours if status == COMPLETE or include_incomplete else Decimal(0)
+		payable_hours = working_hours if status in (COMPLETE, HOLIDAY) or include_incomplete else Decimal(0)
 
 		remarks = []
 		if any(t.date() > date for t in day.outs):
 			remarks.append(_("Overnight"))
 		if day.inferred:
 			remarks.append(_("IN/OUT inferred from punch order"))
-		if status != COMPLETE and not include_incomplete and working_hours:
+		if status not in (COMPLETE, HOLIDAY) and not include_incomplete and working_hours:
 			remarks.append(_("Not paid: incomplete punches"))
 
 		salary_type = STAFF if emp.salary_type == STAFF else WORKER
 		daily_rate = paid_days = None
 		if salary_type == STAFF:
 			daily_rate = to_decimal(emp.daily_rate)
-			if payable_hours > full_day_hours:
+			if day.holiday:
+				remarks.append(_("Worked on holiday - paid one day only") if day.punches else _("Paid holiday"))
+				payable_hours = full_day_hours
+			elif payable_hours > full_day_hours:
 				remarks.append(_("Time beyond full day not paid"))
 				payable_hours = full_day_hours
 			# Pro-rata per hour; a full day comes out at exactly the daily rate.
@@ -286,7 +350,7 @@ def summarise(days, group_by):
 				hourly_rate=d.hourly_rate, daily_rate=d.daily_rate, salary=Decimal(0),
 			)
 		g = groups[key]
-		if d.punch_status == COMPLETE:
+		if d.punch_status in (COMPLETE, HOLIDAY):
 			g.complete_days += 1
 		else:
 			g.incomplete_days += 1

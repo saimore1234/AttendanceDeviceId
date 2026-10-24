@@ -32,6 +32,57 @@ def daily(checkins, start="2026-10-01", end="2026-10-31", include_incomplete=Fal
 
 
 class TestHourlySalaryReport(unittest.TestCase):
+	def test_staff_paid_full_day_for_holiday_without_punches(self):
+		rows = build_daily_rows(
+			[], EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31),
+			holidays={"EMP-STAFF": [date(2026, 10, 2), date(2026, 11, 1)]},  # second one is outside the range
+		)
+		(row,) = [to_output(r) for r in rows]
+		self.assertEqual(row["date"], date(2026, 10, 2))
+		self.assertEqual(row["punch_status"], "Paid Holiday")
+		self.assertEqual(row["salary"], 800.0)
+		self.assertEqual(row["paid_days"], 1.0)
+		self.assertEqual(row["working_hours"], 0.0)
+
+	def test_staff_who_works_a_holiday_is_paid_one_day_not_pro_rata(self):
+		rows = build_daily_rows(
+			[punch("EMP-STAFF", "2026-10-02 09:00", "IN"), punch("EMP-STAFF", "2026-10-02 12:00", "OUT")],
+			EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31),
+			holidays={"EMP-STAFF": [date(2026, 10, 2)]},
+		)
+		(row,) = [to_output(r) for r in rows]
+		self.assertEqual(row["salary"], 800.0)
+		self.assertEqual(row["working_hours"], 3.0)
+		self.assertIn("Worked on holiday", row["remarks"])
+
+	def test_holiday_counts_as_complete_day_in_monthly_summary(self):
+		days = build_daily_rows(
+			[], EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31),
+			holidays={"EMP-STAFF": [date(2026, 10, 2)]},
+		)
+		(summary,) = summarise(days, "Employee")
+		self.assertEqual((summary.complete_days, summary.incomplete_days), (1, 0))
+
+	def test_workers_get_no_holiday_pay(self):
+		self.assertEqual(daily([]), [])
+
+	def test_machine_sending_only_out_is_paired_by_order(self):
+		punches = [
+			punch("EMP-RAVI", "2026-10-05 09:00", "OUT"),
+			punch("EMP-RAVI", "2026-10-05 18:00", "OUT"),
+		]
+		(stock,) = daily(punches)
+		self.assertEqual(stock["punch_status"], "Missing IN")
+
+		rows = build_daily_rows(
+			punches, EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31), ignore_log_type=True
+		)
+		(row,) = [to_output(r) for r in rows]
+		self.assertEqual(row["punch_status"], "Complete")
+		self.assertEqual(row["working_hours"], 9.0)
+		self.assertEqual((row["first_in"], row["last_out"]), ("09:00:00", "18:00:00"))
+		self.assertIn("inferred", row["remarks"])
+
 	def test_break_is_excluded(self):
 		(row,) = daily([
 			punch("EMP-RAVI", "2026-10-01 09:00", "IN"),

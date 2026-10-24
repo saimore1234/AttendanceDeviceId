@@ -46,6 +46,19 @@ frappe.query_reports["Hourly Employee Salary Report"] = {
 			default: "Daily",
 		},
 		{
+			fieldname: "pay_weekly_offs",
+			label: __("Pay Weekly Offs to Staff"),
+			fieldtype: "Check",
+			default: 0,
+			description: __("Holidays in the Holiday List are always paid to Staff; tick to include weekly offs (e.g. Sundays) too."),
+		},
+		{
+			fieldname: "ignore_device_log_type",
+			label: __("Ignore Machine IN/OUT (pair by punch order)"),
+			fieldtype: "Check",
+			default: 0,
+		},
+		{
 			fieldname: "include_incomplete",
 			label: __("Pay Complete Pairs on Incomplete Days"),
 			fieldtype: "Check",
@@ -61,7 +74,8 @@ frappe.query_reports["Hourly Employee Salary Report"] = {
 	formatter(value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
 		if (column.fieldname === "punch_status" && data && data.punch_status) {
-			const color = data.punch_status === "Complete" ? "green" : "red";
+			const ok = ["Complete", "Paid Holiday"].includes(data.punch_status);
+			const color = ok ? "green" : "red";
 			value = `<span style="color: var(--${color}-600)">${value}</span>`;
 		}
 		return value;
