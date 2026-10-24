@@ -36,7 +36,18 @@ def ensure_salary_fields():
 					"insert_after": "custom_salary_type",
 					"depends_on": "eval:doc.custom_salary_type=='Staff'",
 				},
-			]
+			],
+			"Salary Slip": [
+				{
+					"fieldname": "custom_punch_based_pay",
+					"label": "Punch-Based Pay",
+					"fieldtype": "Currency",
+					"read_only": 1,
+					"no_copy": 1,
+					"insert_after": "salary_structure",
+					"description": "Set when created from the Hourly Employee Salary Report: the Salary Structure formulas run on this amount instead of the assignment's fixed base.",
+				},
+			],
 		},
 		update=True,
 	)

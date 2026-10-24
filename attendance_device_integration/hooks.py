@@ -129,9 +129,9 @@ after_install = "attendance_device_integration.setup.create_doctypes.execute"
 # ---------------
 # Override standard doctype classes
 
-# override_doctype_class = {
-# 	"ToDo": "custom_app.overrides.CustomToDo"
-# }
+override_doctype_class = {
+	"Salary Slip": "attendance_device_integration.overrides.salary_slip.PunchSalarySlip",
+}
 
 # Document Events
 # ---------------
