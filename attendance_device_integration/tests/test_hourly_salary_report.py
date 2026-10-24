@@ -5,6 +5,7 @@ import frappe
 
 from attendance_device_integration.attendance_device_integration.report.hourly_employee_salary_report.hourly_employee_salary_report import (
 	build_daily_rows,
+	holiday_label,
 	summarise,
 	to_output,
 )
@@ -22,6 +23,18 @@ def staff_day(*punches):
 	return row
 
 
+class TestHolidayLabel(unittest.TestCase):
+	def test_html_description_is_stripped_and_weekly_off_is_named(self):
+		html = frappe._dict(description='<div class="ql-editor read-mode"><p>Janmastami</p></div>', weekly_off=0)
+		self.assertEqual(holiday_label(html), "Janmastami")
+		self.assertEqual(holiday_label(frappe._dict(description="Sunday", weekly_off=1)), "Weekly Off (Sunday)")
+		self.assertEqual(holiday_label(frappe._dict(description=None, weekly_off=0)), "Holiday")
+
+
+def holiday(label, paid=True):
+	return frappe._dict(label=label, paid=paid)
+
+
 def punch(employee, when, log_type):
 	return frappe._dict(employee=employee, time=datetime.fromisoformat(when), log_type=log_type)
 
@@ -35,10 +48,14 @@ class TestHourlySalaryReport(unittest.TestCase):
 	def test_staff_paid_full_day_for_holiday_without_punches(self):
 		rows = build_daily_rows(
 			[], EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31),
-			holidays={"EMP-STAFF": [date(2026, 10, 2), date(2026, 11, 1)]},  # second one is outside the range
+			holidays={"EMP-STAFF": {
+				date(2026, 10, 2): holiday("Gandhi Jayanti"),
+				date(2026, 11, 1): holiday("Outside the range"),
+			}},
 		)
 		(row,) = [to_output(r) for r in rows]
 		self.assertEqual(row["date"], date(2026, 10, 2))
+		self.assertEqual(row["holiday"], "Gandhi Jayanti")
 		self.assertEqual(row["punch_status"], "Paid Holiday")
 		self.assertEqual(row["salary"], 800.0)
 		self.assertEqual(row["paid_days"], 1.0)
@@ -48,7 +65,7 @@ class TestHourlySalaryReport(unittest.TestCase):
 		rows = build_daily_rows(
 			[punch("EMP-STAFF", "2026-10-02 09:00", "IN"), punch("EMP-STAFF", "2026-10-02 12:00", "OUT")],
 			EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31),
-			holidays={"EMP-STAFF": [date(2026, 10, 2)]},
+			holidays={"EMP-STAFF": {date(2026, 10, 2): holiday("Gandhi Jayanti")}},
 		)
 		(row,) = [to_output(r) for r in rows]
 		self.assertEqual(row["salary"], 800.0)
@@ -58,13 +75,77 @@ class TestHourlySalaryReport(unittest.TestCase):
 	def test_holiday_counts_as_complete_day_in_monthly_summary(self):
 		days = build_daily_rows(
 			[], EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31),
-			holidays={"EMP-STAFF": [date(2026, 10, 2)]},
+			holidays={"EMP-STAFF": {date(2026, 10, 2): holiday("Gandhi Jayanti")}},
 		)
 		(summary,) = summarise(days, "Employee")
 		self.assertEqual((summary.complete_days, summary.incomplete_days), (1, 0))
 
-	def test_workers_get_no_holiday_pay(self):
-		self.assertEqual(daily([]), [])
+	def test_worker_sees_unpaid_holiday_row(self):
+		rows = build_daily_rows(
+			[], EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31),
+			holidays={"EMP-RAVI": {date(2026, 10, 2): holiday("Gandhi Jayanti", paid=False)}},
+		)
+		(row,) = [to_output(r) for r in rows]
+		self.assertEqual((row["holiday"], row["punch_status"], row["salary"]), ("Gandhi Jayanti", "Holiday", 0.0))
+		self.assertIn("not paid", row["remarks"])
+		(summary,) = summarise(rows, "Employee")
+		self.assertEqual((summary.complete_days, summary.incomplete_days), (0, 0))
+
+	def test_worker_who_works_a_holiday_is_paid_for_hours_and_row_names_the_holiday(self):
+		rows = build_daily_rows(
+			[punch("EMP-RAVI", "2026-10-02 09:00", "IN"), punch("EMP-RAVI", "2026-10-02 17:00", "OUT")],
+			EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31),
+			holidays={"EMP-RAVI": {date(2026, 10, 2): holiday("Gandhi Jayanti", paid=False)}},
+		)
+		(row,) = [to_output(r) for r in rows]
+		self.assertEqual((row["holiday"], row["salary"]), ("Gandhi Jayanti", 520.0))
+		self.assertIn("Worked on holiday", row["remarks"])
+
+	def test_stray_out_just_before_the_real_in_does_not_make_the_day_unpaid(self):
+		punches = [
+			punch("EMP-RAVI", "2026-10-14 09:00:20", "OUT"),
+			punch("EMP-RAVI", "2026-10-14 09:00:53", "IN"),
+			punch("EMP-RAVI", "2026-10-14 18:28:56", "OUT"),
+		]
+		(stock,) = daily(punches)
+		self.assertEqual(stock["punch_status"], "Missing IN")
+
+		rows = build_daily_rows(
+			punches, EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31), duplicate_window_minutes=5
+		)
+		(row,) = [to_output(r) for r in rows]
+		self.assertEqual(row["punch_status"], "Complete")
+		self.assertEqual((row["first_in"], row["last_out"]), ("09:00:53", "18:28:56"))
+		self.assertEqual(row["working_hours"], 9.47)
+		self.assertIn("Repeated scans merged", row["remarks"])
+
+	def test_double_scan_out_keeps_the_latest_and_in_keeps_the_earliest(self):
+		rows = build_daily_rows(
+			[
+				punch("EMP-RAVI", "2026-10-15 09:00:00", "IN"),
+				punch("EMP-RAVI", "2026-10-15 09:00:40", "IN"),
+				punch("EMP-RAVI", "2026-10-15 18:00:00", "OUT"),
+				punch("EMP-RAVI", "2026-10-15 18:00:30", "OUT"),
+			],
+			EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31), duplicate_window_minutes=5,
+		)
+		(row,) = [to_output(r) for r in rows]
+		self.assertEqual(row["punch_status"], "Complete")
+		self.assertEqual((row["first_in"], row["last_out"]), ("09:00:00", "18:00:30"))
+
+	def test_genuine_break_out_in_is_not_merged(self):
+		rows = build_daily_rows(
+			[
+				punch("EMP-RAVI", "2026-10-15 09:00", "IN"),
+				punch("EMP-RAVI", "2026-10-15 13:00", "OUT"),
+				punch("EMP-RAVI", "2026-10-15 13:30", "IN"),
+				punch("EMP-RAVI", "2026-10-15 18:00", "OUT"),
+			],
+			EMPLOYEES, date(2026, 10, 1), date(2026, 10, 31), duplicate_window_minutes=5,
+		)
+		(row,) = [to_output(r) for r in rows]
+		self.assertEqual(row["working_hours"], 8.5)
+		self.assertNotIn("merged", row["remarks"])
 
 	def test_machine_sending_only_out_is_paired_by_order(self):
 		punches = [

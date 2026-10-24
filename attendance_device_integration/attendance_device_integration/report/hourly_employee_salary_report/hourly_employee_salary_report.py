@@ -20,7 +20,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, get_datetime, getdate
+from frappe.utils import add_days, cint, get_datetime, getdate, strip_html
 
 HOURLY_RATE_FIELD = "custom_hourly_rate"
 SALARY_TYPE_FIELD = "custom_salary_type"
@@ -38,6 +38,7 @@ MISSING_OUT = "Missing OUT"
 MISSING_IN = "Missing IN"
 INVALID_SEQUENCE = "Invalid Punch Sequence"
 HOLIDAY = "Paid Holiday"
+HOLIDAY_OFF = "Holiday"  # a holiday nobody is paid for (Workers, unpaid weekly offs)
 
 TWO_PLACES = Decimal("0.01")
 
@@ -50,7 +51,7 @@ def execute(filters=None):
 
 	employees = get_employees(filters)
 	checkins = get_checkins(filters, employees) if employees else []
-	holidays = get_staff_holidays(
+	holidays = get_holidays(
 		employees, getdate(filters.from_date), getdate(filters.to_date), bool(filters.pay_weekly_offs)
 	)
 	days = build_daily_rows(
@@ -62,6 +63,7 @@ def execute(filters=None):
 		full_day_hours,
 		bool(filters.ignore_device_log_type),
 		holidays,
+		cint(filters.duplicate_window_minutes),
 	)
 
 	data = days if group_by == "Daily" else summarise(days, group_by)
@@ -120,35 +122,48 @@ def get_employees(filters):
 	return {row.name: row for row in rows}
 
 
-def get_staff_holidays(employees, from_date, to_date, pay_weekly_offs=False):
-	"""{employee: [dates]} of Holiday List days Staff are paid for.
+def holiday_label(holiday):
+	# Holiday.description is a text editor field, so it arrives wrapped in HTML.
+	description = strip_html(holiday.description or "").strip()
+	if holiday.weekly_off:
+		return _("Weekly Off") + (f" ({description})" if description else "")
+	return description or _("Holiday")
+
+
+def get_holidays(employees, from_date, to_date, pay_weekly_offs=False):
+	"""{employee: {date: frappe._dict(label, paid)}} for every Holiday List day
+	in the range, so the report can mark the day for everyone.
 
 	Uses the employee's own Holiday List, else the Company default - the same
-	lookup HRMS does. Weekly offs are only included when asked for, because
-	whether Sundays are paid is a payroll policy, not something the list says.
-	Days before joining or after relieving are never paid."""
+	lookup HRMS does. Only Staff are paid for a holiday, and weekly offs only
+	when asked for, because whether Sundays are paid is a payroll policy, not
+	something the list says. Days before joining or after relieving are skipped."""
 	from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
-	from hrms.utils.holiday_list import get_holiday_dates_between
 
 	by_list = {}
 	result = {}
 	for name, emp in employees.items():
-		if emp.salary_type != STAFF:
-			continue
 		holiday_list = get_holiday_list_for_employee(name, raise_exception=False)
 		if not holiday_list:
 			continue
 		if holiday_list not in by_list:
-			by_list[holiday_list] = get_holiday_dates_between(
-				holiday_list, from_date, to_date, skip_weekly_offs=not pay_weekly_offs
+			by_list[holiday_list] = frappe.get_all(
+				"Holiday",
+				filters={"parent": holiday_list, "holiday_date": ["between", [from_date, to_date]]},
+				fields=["holiday_date", "description", "weekly_off"],
 			)
 		joined = getdate(emp.date_of_joining) if emp.date_of_joining else None
 		relieved = getdate(emp.relieving_date) if emp.relieving_date else None
-		result[name] = [
-			d
-			for d in by_list[holiday_list]
-			if (not joined or d >= joined) and (not relieved or d <= relieved)
-		]
+		is_staff = emp.salary_type == STAFF
+		result[name] = {
+			getdate(h.holiday_date): frappe._dict(
+				label=holiday_label(h),
+				paid=is_staff and (not h.weekly_off or pay_weekly_offs),
+			)
+			for h in by_list[holiday_list]
+			if (not joined or getdate(h.holiday_date) >= joined)
+			and (not relieved or getdate(h.holiday_date) <= relieved)
+		}
 	return result
 
 
@@ -189,6 +204,39 @@ def infer_missing_log_types(punches, ignore_log_type=False):
 	return result
 
 
+def collapse_duplicate_punches(punches, window_minutes):
+	"""Merge punches closer together than window_minutes into one.
+
+	A double scan, or a scan the machine flagged with the wrong direction just
+	before the right one, would otherwise leave a stray punch that makes the
+	whole day "Missing IN/OUT" and unpaid. The merged punch takes the direction
+	of the last scan in the cluster, at the earliest IN or latest OUT time."""
+	if not window_minutes:
+		return punches
+
+	window_seconds = window_minutes * 60
+	result, cluster = [], []
+
+	def flush():
+		last = cluster[-1]
+		same_type = [p.time for p in cluster if p.log_type == last.log_type]
+		result.append(frappe._dict(
+			time=min(same_type) if last.log_type == "IN" else max(same_type),
+			log_type=last.log_type,
+			inferred=any(p.inferred for p in cluster),
+			merged=len(cluster) > 1,
+		))
+
+	for p in punches:
+		if cluster and (p.time - cluster[-1].time).total_seconds() > window_seconds:
+			flush()
+			cluster = []
+		cluster.append(p)
+	if cluster:
+		flush()
+	return result
+
+
 def pair_punches(punches):
 	"""Pair one employee's chronological punches into IN -> OUT pairs.
 
@@ -226,6 +274,7 @@ def build_daily_rows(
 	full_day_hours=Decimal(8),
 	ignore_log_type=False,
 	holidays=None,
+	duplicate_window_minutes=0,
 ):
 	by_employee = defaultdict(list)
 	for c in checkins:
@@ -237,12 +286,13 @@ def build_daily_rows(
 		if (employee, date) not in days:
 			days[(employee, date)] = frappe._dict(
 				employee=employee, date=date, seconds=Decimal(0), ins=[], outs=[], issues=set(), inferred=False, punches=0,
-				holiday=False,
+				holiday=None, merged=False,
 			)
 		return days[(employee, date)]
 
 	for employee, punches in by_employee.items():
 		punches = infer_missing_log_types(sorted(punches, key=lambda p: get_datetime(p.time)), ignore_log_type)
+		punches = collapse_duplicate_punches(punches, duplicate_window_minutes)
 		pairs, strays = pair_punches(punches)
 
 		# A pair belongs to the day of its IN, so an overnight shift stays on one row.
@@ -252,6 +302,7 @@ def build_daily_rows(
 			day.ins.append(in_p.time)
 			day.outs.append(out_p.time)
 			day.inferred = day.inferred or in_p.inferred or out_p.inferred
+			day.merged = day.merged or in_p.get("merged") or out_p.get("merged")
 			day.punches += 2
 
 		for p, issue in strays:
@@ -259,21 +310,28 @@ def build_daily_rows(
 			day.issues.add(issue)
 			(day.ins if p.log_type == "IN" else day.outs).append(p.time)
 			day.inferred = day.inferred or p.inferred
+			day.merged = day.merged or p.get("merged")
 			day.punches += 1
 
-	# Staff are paid a full day for holidays whether or not they punched; a
-	# holiday nobody punched on still needs its own row.
-	for employee, dates in (holidays or {}).items():
-		for date in dates:
+	# Every holiday gets a row so the day is visibly a holiday, punched or not.
+	# Staff are paid a full day for it (see get_holidays for what counts as paid).
+	for employee, by_date in (holidays or {}).items():
+		for date, holiday in by_date.items():
 			if from_date <= date <= to_date:
-				day_for(employee, date).holiday = True
+				day_for(employee, date).holiday = holiday
 
 	rows = []
 	for (employee, date), day in sorted(days.items()):
 		if not (from_date <= date <= to_date):
 			continue
 		emp = employees[employee]
-		status = HOLIDAY if day.holiday else punch_status(day.issues)
+		paid_holiday = bool(day.holiday and day.holiday.paid)
+		if paid_holiday:
+			status = HOLIDAY
+		elif day.holiday and not day.punches:
+			status = HOLIDAY_OFF
+		else:
+			status = punch_status(day.issues)
 		working_hours = (day.seconds / 3600).quantize(TWO_PLACES, ROUND_HALF_UP)
 		payable_hours = working_hours if status in (COMPLETE, HOLIDAY) or include_incomplete else Decimal(0)
 
@@ -282,15 +340,20 @@ def build_daily_rows(
 			remarks.append(_("Overnight"))
 		if day.inferred:
 			remarks.append(_("IN/OUT inferred from punch order"))
-		if status not in (COMPLETE, HOLIDAY) and not include_incomplete and working_hours:
+		if day.merged:
+			remarks.append(_("Repeated scans merged"))
+		if status not in (COMPLETE, HOLIDAY, HOLIDAY_OFF) and not include_incomplete and working_hours:
 			remarks.append(_("Not paid: incomplete punches"))
+		if paid_holiday:
+			remarks.append(_("Worked on holiday - paid one day only") if day.punches else _("Paid holiday"))
+		elif day.holiday:
+			remarks.append(_("Worked on holiday") if day.punches else _("Holiday - not paid"))
 
 		salary_type = STAFF if emp.salary_type == STAFF else WORKER
 		daily_rate = paid_days = None
 		if salary_type == STAFF:
 			daily_rate = to_decimal(emp.daily_rate)
-			if day.holiday:
-				remarks.append(_("Worked on holiday - paid one day only") if day.punches else _("Paid holiday"))
+			if paid_holiday:
 				payable_hours = full_day_hours
 			elif payable_hours > full_day_hours:
 				remarks.append(_("Time beyond full day not paid"))
@@ -304,7 +367,7 @@ def build_daily_rows(
 		else:
 			hourly_rate = to_decimal(emp.hourly_rate)
 			salary = (payable_hours * hourly_rate).quantize(TWO_PLACES, ROUND_HALF_UP)
-			if not hourly_rate:
+			if not hourly_rate and status != HOLIDAY_OFF:
 				remarks.append(_("No hourly rate on Employee"))
 
 		rows.append(frappe._dict(
@@ -313,6 +376,7 @@ def build_daily_rows(
 			department=emp.department,
 			salary_type=salary_type,
 			date=date,
+			holiday=day.holiday.label if day.holiday else None,
 			first_in=min(day.ins).strftime("%H:%M:%S") if day.ins else None,
 			last_out=max(day.outs).strftime("%H:%M:%S") if day.outs else None,
 			punch_count=day.punches,
@@ -352,7 +416,7 @@ def summarise(days, group_by):
 		g = groups[key]
 		if d.punch_status in (COMPLETE, HOLIDAY):
 			g.complete_days += 1
-		else:
+		elif d.punch_status != HOLIDAY_OFF:
 			g.incomplete_days += 1
 		g.working_hours += d.working_hours
 		g.payable_hours += d.payable_hours
@@ -401,6 +465,7 @@ def get_columns(group_by):
 			employee_cols
 			+ [
 				{"label": _("Date"), "fieldname": "date", "fieldtype": "Date", "width": 100},
+				{"label": _("Holiday"), "fieldname": "holiday", "fieldtype": "Data", "width": 130},
 				{"label": _("First IN"), "fieldname": "first_in", "fieldtype": "Time", "width": 90},
 				{"label": _("Last OUT"), "fieldname": "last_out", "fieldtype": "Time", "width": 90},
 				{"label": _("Punches"), "fieldname": "punch_count", "fieldtype": "Int", "width": 80},

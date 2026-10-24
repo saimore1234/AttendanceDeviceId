@@ -46,6 +46,13 @@ frappe.query_reports["Hourly Employee Salary Report"] = {
 			default: "Daily",
 		},
 		{
+			fieldname: "duplicate_window_minutes",
+			label: __("Merge Repeated Scans Within (minutes)"),
+			fieldtype: "Int",
+			default: 5,
+			description: __("Scans closer together than this count as one punch. 0 turns it off."),
+		},
+		{
 			fieldname: "pay_weekly_offs",
 			label: __("Pay Weekly Offs to Staff"),
 			fieldtype: "Check",
@@ -74,8 +81,11 @@ frappe.query_reports["Hourly Employee Salary Report"] = {
 	formatter(value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
 		if (column.fieldname === "punch_status" && data && data.punch_status) {
-			const ok = ["Complete", "Paid Holiday"].includes(data.punch_status);
-			const color = ok ? "green" : "red";
+			const color = ["Complete", "Paid Holiday"].includes(data.punch_status)
+				? "green"
+				: data.punch_status === "Holiday"
+					? "blue"
+					: "red";
 			value = `<span style="color: var(--${color}-600)">${value}</span>`;
 		}
 		return value;
