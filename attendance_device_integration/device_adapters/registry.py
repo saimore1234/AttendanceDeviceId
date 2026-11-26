@@ -15,11 +15,12 @@ from attendance_device_integration.device_adapters.generic import ManualAdapter
 from attendance_device_integration.device_adapters.http_api import GenericHTTPAdapter
 from attendance_device_integration.device_adapters.tcp_ip import GenericTCPAdapter
 from attendance_device_integration.device_adapters.zkteco import ZKTecoAdapter
-
+from attendance_device_integration.device_adapters.mantra import MantraAdapter
 DEVICE_ADAPTERS = {
 	"Generic TCP/IP": GenericTCPAdapter,
 	"ESSL TCP/IP": ESSLAdapter,
 	"ZKTeco Compatible TCP/IP": ZKTecoAdapter,
+	"Mantra BioTime SDK": MantraAdapter,
 	"Generic HTTP API": GenericHTTPAdapter,
 	"ADMS": ADMSAdapter,
 	"CSV Import": CSVAdapter,

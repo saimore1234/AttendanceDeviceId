@@ -93,7 +93,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Protocol / Adapter Type",
-   "options": "Generic TCP/IP\nESSL TCP/IP\nZKTeco Compatible TCP/IP\nGeneric HTTP API\nADMS\nCSV Import\nExcel Import\nManual Entry",
+   "options": "Generic TCP/IP\nESSL TCP/IP\nZKTeco Compatible TCP/IP\nMantra BioTime SDK\nGeneric HTTP API\nADMS\nCSV Import\nExcel Import\nManual Entry",
    "reqd": 1
   },
   {
@@ -131,7 +131,7 @@
    "options": "Biometric\nFace Recognition\nFingerprint\nRFID\nPIN\nFace + Fingerprint\nMulti-Modal\nOther"
   },
   {
-   "depends_on": "eval:['Generic TCP/IP','ESSL TCP/IP','ZKTeco Compatible TCP/IP'].includes(doc.protocol_type)",
+   "depends_on": "eval:['Generic TCP/IP','ESSL TCP/IP','ZKTeco Compatible TCP/IP','Mantra BioTime SDK'].includes(doc.protocol_type)",
    "fieldname": "section_break_2",
    "fieldtype": "Section Break",
    "label": "TCP/IP Settings"
