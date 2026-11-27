@@ -43,10 +43,18 @@ class RemoteAgentAdapter(AttendanceDeviceAdapter):
         self._connected = False
 
     def _args(self):
-        token = (
-            self.device.get("local_agent_token")
-            or self.credential.get("bearer_token")
-        )
+        token = None
+
+        # Read the decrypted Password field.
+        if hasattr(self.device, "get_password"):
+            try:
+                token = self.device.get_password("local_agent_token")
+            except Exception:
+                token = None
+
+        # Fallback to the existing credential.
+        if not token:
+            token = self.credential.get("bearer_token")
 
         return (
             self.device.get("local_agent_url"),
