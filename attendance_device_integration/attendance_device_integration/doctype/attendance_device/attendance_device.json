@@ -94,7 +94,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Protocol / Adapter Type",
-   "options": "Generic TCP/IP\nESSL TCP/IP\nZKTeco Compatible TCP/IP\nGeneric HTTP API\nADMS\nCSV Import\nExcel Import\nManual Entry",
+   "options": "Generic TCP/IP\nESSL TCP/IP\nZKTeco Compatible TCP/IP\nMantra BioTime SDK\nGeneric HTTP API\nADMS\nCSV Import\nExcel Import\nManual Entry",
    "reqd": 1
   },
   {
